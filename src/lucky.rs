@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use xcb::x::{self, ChangeWindowAttributes};
+use xcb::x::{self, ChangeWindowAttributes, MapWindow};
 
 pub struct Lucky {
     conn: Arc<xcb::Connection>,
@@ -9,9 +9,9 @@ pub struct Lucky {
 
 impl Lucky {
     pub fn new() -> Self {
-        let (conn, _) = xcb::Connection::connect_with_extensions(None, &[xcb::Extension::Xkb], &[]).expect("failed to initialize connection to the X server. Check the DISPLAY environment variable");
-        let font = conn.generate_id();
+        let (conn, _) = xcb::Connection::connect(None).expect("failed to initialize connection to the X server. Check the DISPLAY environment variable");
 
+        let font = conn.generate_id();
         let cookie = conn.send_request_checked(&xcb::x::OpenFont {
             fid: font,
             name: b"cursor",
@@ -84,16 +84,20 @@ impl Lucky {
     }
 
     #[tracing::instrument(skip_all, name = "handle_event")]
-    async fn handle_event(_conn: Arc<xcb::Connection>, event: xcb::Event) {
+    async fn handle_event(conn: Arc<xcb::Connection>, event: xcb::Event) -> anyhow::Result<()> {
         tracing::debug!("event received");
         match event {
             xcb::Event::X(xcb::x::Event::MapNotify(e)) => {
-                tracing::trace!("handling keypress {:?}", e);
+                tracing::trace!("handling keypress notify {:?}", e);
             }
             xcb::Event::X(xcb::x::Event::MapRequest(e)) => {
-                tracing::trace!("handling keypress {:?}", e);
+                let window = e.window();
+                let cookies = conn.send_request_checked(&MapWindow { window });
+                conn.check_request(cookies)?;
             }
             _ => (),
-        }
+        };
+
+        Ok(())
     }
 }
