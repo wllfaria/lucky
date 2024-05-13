@@ -72,13 +72,15 @@ impl Clients {
         Ok(())
     }
 
-    pub fn destroy(&mut self, window: xcb::x::Window) {
+    pub fn destroy(&mut self, window: xcb::x::Window) -> anyhow::Result<()> {
         self.clients.retain(|client| client.window.ne(&window));
 
         if self.active_client().eq(&Some(window)) {
             let active_client = self.clients.iter().next().map(|c| c.window);
-            self.set_active_client(active_client);
+            self.set_active_client(active_client)?;
         }
+
+        Ok(())
     }
 
     pub fn active_client(&mut self) -> Option<xcb::x::Window> {
@@ -106,20 +108,21 @@ impl Clients {
         if let Some(window) = client {
             match action {
                 AvailableActions::Close => {
-                    let (wm_protocols, wm_del_window) = (
-                        self.conn
-                            .wait_for_reply(self.conn.send_request(&xcb::x::InternAtom {
-                                only_if_exists: true,
-                                name: b"WM_PROTOCOLS",
-                            }))?
-                            .atom(),
-                        self.conn
-                            .wait_for_reply(self.conn.send_request(&xcb::x::InternAtom {
-                                only_if_exists: true,
-                                name: b"WM_DELETE_WINDOW",
-                            }))?
-                            .atom(),
-                    );
+                    let wm_protocols = self
+                        .conn
+                        .wait_for_reply(self.conn.send_request(&xcb::x::InternAtom {
+                            only_if_exists: true,
+                            name: b"WM_PROTOCOLS",
+                        }))?
+                        .atom();
+
+                    let wm_del_window = self
+                        .conn
+                        .wait_for_reply(self.conn.send_request(&xcb::x::InternAtom {
+                            only_if_exists: true,
+                            name: b"WM_DELETE_WINDOW",
+                        }))?
+                        .atom();
 
                     self.conn.check_request(self.conn.send_request_checked(
                         &xcb::x::ChangeProperty {
@@ -153,13 +156,12 @@ impl Clients {
                     });
 
                     self.conn.flush()?;
-                    self.destroy(window)
+                    self.destroy(window)?;
                 }
                 AvailableActions::MoveUp => {}
                 _ => {}
             }
         }
-        tracing::debug!("{:?}", self.clients);
 
         Ok(())
     }
