@@ -2,7 +2,7 @@ mod config;
 mod config_loader;
 pub mod keysyms;
 
-pub use config::Config;
+pub use config::{AvailableActions, Config};
 use config_loader::UnresolvedConfig;
 use std::path::{Path, PathBuf};
 

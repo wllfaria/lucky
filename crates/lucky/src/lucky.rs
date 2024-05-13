@@ -1,20 +1,26 @@
 use config::Config;
-use std::sync::{mpsc::channel, Arc, Mutex};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{mpsc::channel, Arc},
+};
 use xcb::x::{self, ChangeWindowAttributes, ConfigureWindow, MapWindow};
 
-use crate::{cursor::Cursor, event::EventContext, handlers::Handlers, keyboard::Keyboard};
+use crate::{
+    clients::Clients, cursor::Cursor, event::EventContext, handlers::Handlers, keyboard::Keyboard,
+};
 
 pub struct Lucky {
     conn: Arc<xcb::Connection>,
     keyboard: Keyboard,
-    config: Config,
+    config: Rc<Config>,
     handlers: Handlers,
+    clients: Rc<RefCell<Clients>>,
 }
 
 impl Lucky {
     pub fn new(config: Config) -> Self {
         let (conn, _) = xcb::Connection::connect(None).expect("failed to initialize self.conn to the X server. Check the DISPLAY environment variable");
-
         let conn = Arc::new(conn);
         let cursor = Cursor::new(conn.clone());
 
@@ -24,8 +30,6 @@ impl Lucky {
             .next()
             .expect("should have at least a single window");
         let root = screen.root();
-
-        let keyboard = Keyboard::new(conn.clone(), root, &config);
 
         conn.check_request(conn.send_request_checked(&ChangeWindowAttributes {
             window: root,
@@ -38,11 +42,13 @@ impl Lucky {
         }))
         .expect("failed to subscribe for substructure redirection");
 
+        let config = Rc::new(config);
         Self {
-            conn,
-            keyboard,
-            config,
+            clients: Rc::new(RefCell::new(Clients::new(conn.clone(), config.clone()))),
+            keyboard: Keyboard::new(conn.clone(), root, config.clone()),
             handlers: Handlers::default(),
+            conn,
+            config,
         }
     }
 
@@ -84,33 +90,18 @@ impl Lucky {
                             event,
                             conn: self.conn.clone(),
                             keyboard: &self.keyboard,
-                            config: &self.config,
+                            config: self.config.clone(),
+                            clients: self.clients.clone(),
                         });
                     }
+                    XEvent::MapRequest(event) => self.handlers.on_map_request(EventContext {
+                        event,
+                        conn: self.conn.clone(),
+                        keyboard: &self.keyboard,
+                        config: self.config.clone(),
+                        clients: self.clients.clone(),
+                    }),
                     XEvent::ConfigureRequest(_) => todo!(),
-                    XEvent::MapRequest(e) => {
-                        let root_win = self
-                            .conn
-                            .get_setup()
-                            .roots()
-                            .next()
-                            .expect("should have at least a single window");
-
-                        let window = e.window();
-
-                        let cookies = self.conn.send_request_checked(&ConfigureWindow {
-                            window: e.window(),
-                            value_list: &[
-                                x::ConfigWindow::X(0),
-                                x::ConfigWindow::Y(0),
-                                x::ConfigWindow::Width(root_win.width_in_pixels().into()),
-                                x::ConfigWindow::Height(root_win.height_in_pixels().into()),
-                            ],
-                        });
-                        self.conn.check_request(cookies).unwrap();
-                        let cookies = self.conn.send_request_checked(&MapWindow { window });
-                        self.conn.check_request(cookies).unwrap();
-                    }
                     XEvent::PropertyNotify(_) => {}
                     XEvent::EnterNotify(_) => {}
                     XEvent::UnmapNotify(_) => {}

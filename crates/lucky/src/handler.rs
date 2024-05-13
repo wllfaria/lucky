@@ -2,10 +2,18 @@ use crate::event::EventContext;
 
 /// Common interface for event handlers to implement
 pub trait Handler {
-    /// function used to handle `xcb::x::KeyPressEvents`
+    /// Function used to handle `xcb::x::KeyPressEvent`s
     fn on_key_press(
         &mut self,
         _context: EventContext<xcb::x::KeyPressEvent>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    /// Function used to handle `xcb::x::MapRequestEvent`s
+    fn on_map_request(
+        &mut self,
+        _context: EventContext<xcb::x::MapRequestEvent>,
     ) -> anyhow::Result<()> {
         Ok(())
     }

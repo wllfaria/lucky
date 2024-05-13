@@ -1,3 +1,4 @@
+mod clients;
 mod cursor;
 mod event;
 mod handler;

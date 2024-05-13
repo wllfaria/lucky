@@ -1,6 +1,6 @@
-use crate::keyboard::Keyboard;
+use crate::{clients::Clients, keyboard::Keyboard};
 use config::Config;
-use std::sync::Arc;
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 /// The context required by `Handlers` to properly handle all sorts of events, this context can and
 /// should be clones as many handlers may be interested in the same kind of events.
@@ -11,10 +11,13 @@ pub struct EventContext<'ec, E> {
     pub conn: Arc<xcb::Connection>,
     /// The window manager configuration, used to get user defined parameters that can influence
     /// how events are handled
-    pub config: &'ec Config,
+    pub config: Rc<Config>,
     /// The keyboard state retrieved from `XKB`, this is used to define which key is pressed
     /// through the Keycode we get from `xcb::x::KeyPressEvent`
     pub keyboard: &'ec Keyboard,
+    /// All the clients currently being handled by the window manager, clients are how we call all
+    /// the windows opened to avoid naming conflicts with `xcb::x::Window`
+    pub clients: Rc<RefCell<Clients>>,
 }
 
 impl Clone for EventContext<'_, xcb::x::KeyPressEvent> {
@@ -35,8 +38,23 @@ impl Clone for EventContext<'_, xcb::x::KeyPressEvent> {
         Self {
             event,
             conn: self.conn.clone(),
-            config: self.config,
+            config: self.config.clone(),
             keyboard: self.keyboard,
+            clients: self.clients.clone(),
+        }
+    }
+}
+
+impl Clone for EventContext<'_, xcb::x::MapRequestEvent> {
+    fn clone(&self) -> Self {
+        let event = xcb::x::MapRequestEvent::new(self.event.parent(), self.event.window());
+
+        Self {
+            event,
+            conn: self.conn.clone(),
+            config: self.config.clone(),
+            keyboard: self.keyboard,
+            clients: self.clients.clone(),
         }
     }
 }

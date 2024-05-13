@@ -105,6 +105,10 @@ impl Action {
     pub fn modifiers(&self) -> u32 {
         self.modifier
     }
+
+    pub fn action(&self) -> &AvailableActions {
+        &self.action
+    }
 }
 
 impl Command {
