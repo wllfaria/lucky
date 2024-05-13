@@ -4,7 +4,7 @@ use std::{
     sync::Arc,
 };
 use xcb::{
-    x::{ConfigureWindow, MapWindow},
+    x::{ChangeWindowAttributes, ConfigureWindow, MapWindow},
     Xid,
 };
 
@@ -32,14 +32,19 @@ impl Clients {
         }
     }
 
-    pub fn create(&mut self, window: xcb::x::Window) {
-        self.active_windows
-            .insert(self.active_workspace, Some(window));
+    pub fn create(&mut self, window: xcb::x::Window) -> anyhow::Result<()> {
         self.clients.push_front(Client {
             window,
             visible: true,
             workspace: Some(self.active_workspace),
         });
+
+        self.enable_events(window)?;
+
+        self.active_windows
+            .insert(self.active_workspace, Some(window));
+
+        Ok(())
     }
 
     pub fn display(&mut self, window: xcb::x::Window) -> anyhow::Result<()> {
@@ -65,6 +70,20 @@ impl Clients {
                     .check_request(self.conn.send_request_checked(&MapWindow { window }))?;
             }
         }
+
+        Ok(())
+    }
+
+    fn enable_events(&mut self, window: xcb::x::Window) -> anyhow::Result<()> {
+        self.conn
+            .check_request(self.conn.send_request_checked(&ChangeWindowAttributes {
+                window,
+                value_list: &[(xcb::x::Cw::EventMask(
+                    xcb::x::EventMask::PROPERTY_CHANGE
+                        | xcb::x::EventMask::SUBSTRUCTURE_NOTIFY
+                        | xcb::x::EventMask::ENTER_WINDOW,
+                ))],
+            }))?;
 
         Ok(())
     }

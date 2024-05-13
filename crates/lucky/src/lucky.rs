@@ -77,9 +77,16 @@ impl Lucky {
                             std::process::abort();
                         }
                     }
+                    xcb::Event::X(xcb::x::Event::EnterNotify(e)) => {
+                        // TODO: when entering the window we should focus it if `focus_on_hover` is
+                        // enabled
+                        if sender.send(XEvent::EnterNotify(e)).is_err() {
+                            tracing::debug!("failed to send event through channel");
+                            std::process::abort();
+                        }
+                    }
                     xcb::Event::X(xcb::x::Event::ConfigureRequest(_)) => todo!(),
-                    xcb::Event::X(xcb::x::Event::PropertyNotify(_)) => todo!(),
-                    xcb::Event::X(xcb::x::Event::EnterNotify(_)) => todo!(),
+                    xcb::Event::X(xcb::x::Event::PropertyNotify(_)) => {}
                     xcb::Event::X(xcb::x::Event::UnmapNotify(_)) => {}
                     _ => (),
                 };
@@ -111,7 +118,13 @@ impl Lucky {
                         config: self.config.clone(),
                         clients: self.clients.clone(),
                     }),
-                    XEvent::EnterNotify(_) => {}
+                    XEvent::EnterNotify(event) => self.handlers.on_enter_notify(EventContext {
+                        event,
+                        conn: self.conn.clone(),
+                        keyboard: &self.keyboard,
+                        config: self.config.clone(),
+                        clients: self.clients.clone(),
+                    }),
                     XEvent::UnmapNotify(_) => {}
                     XEvent::PropertyNotify(_) => {}
                     XEvent::ConfigureRequest(_) => todo!(),

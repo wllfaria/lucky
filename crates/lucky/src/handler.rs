@@ -1,8 +1,6 @@
 use crate::event::EventContext;
 
-/// Common interface for event handlers to implement
 pub trait Handler {
-    /// Function used to handle `xcb::x::KeyPressEvent`s
     fn on_key_press(
         &mut self,
         _context: EventContext<xcb::x::KeyPressEvent>,
@@ -10,7 +8,6 @@ pub trait Handler {
         Ok(())
     }
 
-    /// Function used to handle `xcb::x::MapRequestEvent`s
     fn on_map_request(
         &mut self,
         _context: EventContext<xcb::x::MapRequestEvent>,
@@ -18,10 +15,16 @@ pub trait Handler {
         Ok(())
     }
 
-    /// Function used to handle `xcb::x::DestroyNotifyEvent`s
     fn on_destroy_notify(
         &mut self,
         _context: EventContext<xcb::x::DestroyNotifyEvent>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn on_enter_notify(
+        &mut self,
+        _context: EventContext<xcb::x::EnterNotifyEvent>,
     ) -> anyhow::Result<()> {
         Ok(())
     }

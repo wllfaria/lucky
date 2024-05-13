@@ -1,10 +1,12 @@
 mod action;
 mod command;
+mod hover;
 mod map_window;
 
 use crate::{event::EventContext, handler::Handler};
 use action::ActionHandler;
 use command::CommandHandler;
+use hover::HoverHandler;
 use map_window::MapWindowHandler;
 
 pub struct Handlers {
@@ -18,6 +20,7 @@ impl Default for Handlers {
                 Box::<CommandHandler>::default(),
                 Box::<ActionHandler>::default(),
                 Box::<MapWindowHandler>::default(),
+                Box::<HoverHandler>::default(),
             ],
         }
     }
@@ -39,6 +42,12 @@ impl Handlers {
     pub fn on_destroy_notify(&mut self, context: EventContext<xcb::x::DestroyNotifyEvent>) {
         for handler in self.handlers.iter_mut() {
             handler.on_destroy_notify(context.clone()).ok();
+        }
+    }
+
+    pub fn on_enter_notify(&mut self, context: EventContext<xcb::x::EnterNotifyEvent>) {
+        for handler in self.handlers.iter_mut() {
+            handler.on_enter_notify(context.clone()).ok();
         }
     }
 }

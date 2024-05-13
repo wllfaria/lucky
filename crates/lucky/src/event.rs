@@ -72,3 +72,30 @@ impl Clone for EventContext<'_, xcb::x::DestroyNotifyEvent> {
         }
     }
 }
+
+impl Clone for EventContext<'_, xcb::x::EnterNotifyEvent> {
+    fn clone(&self) -> Self {
+        let event = xcb::x::EnterNotifyEvent::new(
+            self.event.detail(),
+            self.event.time(),
+            self.event.root(),
+            self.event.event(),
+            self.event.child(),
+            self.event.root_x(),
+            self.event.root_y(),
+            self.event.event_x(),
+            self.event.event_y(),
+            self.event.state(),
+            self.event.mode(),
+            self.event.same_screen_focus(),
+        );
+
+        Self {
+            event,
+            conn: self.conn.clone(),
+            config: self.config.clone(),
+            keyboard: self.keyboard,
+            clients: self.clients.clone(),
+        }
+    }
+}
