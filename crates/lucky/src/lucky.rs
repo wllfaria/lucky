@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
     sync::{mpsc::channel, Arc},
 };
-use xcb::x::{self, ChangeWindowAttributes, ConfigureWindow, MapWindow};
+use xcb::x::{self, ChangeWindowAttributes};
 
 use crate::{
     clients::Clients, cursor::Cursor, event::EventContext, handlers::Handlers, keyboard::Keyboard,
@@ -44,7 +44,7 @@ impl Lucky {
 
         let config = Rc::new(config);
         Self {
-            clients: Rc::new(RefCell::new(Clients::new(conn.clone(), config.clone()))),
+            clients: Rc::new(RefCell::new(Clients::new(conn.clone()))),
             keyboard: Keyboard::new(conn.clone(), root, config.clone()),
             handlers: Handlers::default(),
             conn,
@@ -71,11 +71,16 @@ impl Lucky {
                             std::process::abort();
                         }
                     }
+                    xcb::Event::X(xcb::x::Event::DestroyNotify(e)) => {
+                        if sender.send(XEvent::DestroyNotify(e)).is_err() {
+                            tracing::debug!("failed to send event through channel");
+                            std::process::abort();
+                        }
+                    }
                     xcb::Event::X(xcb::x::Event::ConfigureRequest(_)) => todo!(),
                     xcb::Event::X(xcb::x::Event::PropertyNotify(_)) => todo!(),
                     xcb::Event::X(xcb::x::Event::EnterNotify(_)) => todo!(),
                     xcb::Event::X(xcb::x::Event::UnmapNotify(_)) => {}
-                    xcb::Event::X(xcb::x::Event::DestroyNotify(_)) => todo!(),
                     _ => (),
                 };
             };
@@ -99,9 +104,15 @@ impl Lucky {
                         config: self.config.clone(),
                         clients: self.clients.clone(),
                     }),
+                    XEvent::DestroyNotify(event) => self.handlers.on_destroy_notify(EventContext {
+                        event,
+                        conn: self.conn.clone(),
+                        keyboard: &self.keyboard,
+                        config: self.config.clone(),
+                        clients: self.clients.clone(),
+                    }),
                     XEvent::EnterNotify(_) => {}
                     XEvent::UnmapNotify(_) => {}
-                    XEvent::DestroyNotify(_) => {}
                     XEvent::PropertyNotify(_) => {}
                     XEvent::ConfigureRequest(_) => todo!(),
                 }
@@ -112,10 +123,10 @@ impl Lucky {
 
 pub enum XEvent {
     KeyPress(xcb::x::KeyPressEvent),
-    ConfigureRequest(xcb::x::ConfigureRequestEvent),
     MapRequest(xcb::x::MapRequestEvent),
+    DestroyNotify(xcb::x::DestroyNotifyEvent),
     PropertyNotify(xcb::x::PropertyNotifyEvent),
+    ConfigureRequest(xcb::x::ConfigureRequestEvent),
     EnterNotify(xcb::x::EnterNotifyEvent),
     UnmapNotify(xcb::x::UnmapNotifyEvent),
-    DestroyNotify(xcb::x::DestroyNotifyEvent),
 }

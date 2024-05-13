@@ -58,3 +58,17 @@ impl Clone for EventContext<'_, xcb::x::MapRequestEvent> {
         }
     }
 }
+
+impl Clone for EventContext<'_, xcb::x::DestroyNotifyEvent> {
+    fn clone(&self) -> Self {
+        let event = xcb::x::DestroyNotifyEvent::new(self.event.event(), self.event.window());
+
+        Self {
+            event,
+            conn: self.conn.clone(),
+            config: self.config.clone(),
+            keyboard: self.keyboard,
+            clients: self.clients.clone(),
+        }
+    }
+}

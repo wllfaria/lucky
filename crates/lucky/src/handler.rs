@@ -17,4 +17,12 @@ pub trait Handler {
     ) -> anyhow::Result<()> {
         Ok(())
     }
+
+    /// Function used to handle `xcb::x::DestroyNotifyEvent`s
+    fn on_destroy_notify(
+        &mut self,
+        _context: EventContext<xcb::x::DestroyNotifyEvent>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
 }

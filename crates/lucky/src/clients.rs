@@ -1,7 +1,6 @@
-use config::{AvailableActions, Config};
+use config::AvailableActions;
 use std::{
     collections::{HashMap, VecDeque},
-    rc::Rc,
     sync::Arc,
 };
 use xcb::{
@@ -18,17 +17,15 @@ pub struct Client {
 
 pub struct Clients {
     conn: Arc<xcb::Connection>,
-    config: Rc<Config>,
     pub active_workspace: u8,
     pub clients: VecDeque<Client>,
     pub active_windows: HashMap<u8, Option<xcb::x::Window>>,
 }
 
 impl Clients {
-    pub fn new(conn: Arc<xcb::Connection>, config: Rc<Config>) -> Self {
+    pub fn new(conn: Arc<xcb::Connection>) -> Self {
         Self {
             conn,
-            config,
             active_workspace: 1,
             clients: VecDeque::new(),
             active_windows: HashMap::default(),
