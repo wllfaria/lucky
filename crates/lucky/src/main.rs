@@ -1,6 +1,8 @@
 mod cursor;
+mod event;
+mod handler;
+mod handlers;
 mod keyboard;
-mod keys;
 mod lucky;
 
 use lucky::Lucky;

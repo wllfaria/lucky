@@ -77,8 +77,6 @@ impl TryFrom<UnresolvedConfig> for Config {
     fn try_from(value: UnresolvedConfig) -> Result<Self, Self::Error> {
         let mut value = value;
 
-        tracing::debug!("failed actions");
-
         let leader = match value.leader {
             UnresolvedLeader::Shift => AvailableLeaderKeys::Shift,
             UnresolvedLeader::Mod1 => AvailableLeaderKeys::Mod1,
@@ -137,7 +135,6 @@ impl TryFrom<UnresolvedCommandEntry> for Command {
     type Error = ();
 
     fn try_from(value: UnresolvedCommandEntry) -> Result<Self, Self::Error> {
-        tracing::debug!("command start");
         let a = Self {
             command: value.command,
             key: value.key.as_str().try_into()?,
@@ -146,7 +143,6 @@ impl TryFrom<UnresolvedCommandEntry> for Command {
                 .into_iter()
                 .fold(0, |acc, modifier| acc + u32::from(modifier)),
         };
-        tracing::debug!("command");
         Ok(a)
     }
 }

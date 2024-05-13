@@ -5,10 +5,10 @@ use std::convert::TryFrom;
 
 /// map of all the keysyms available. you can see a full list here:
 /// https://www.cl.cam.ac.uk/~mgk25/ucs/keysymdef.h
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Keysym {
     XK_BackSpace = 0xff08,
-    XK_Return = 0x00a4,
+    XK_Return = 0xff0d,
     XK_0 = 0x030,
     XK_1 = 0x031,
     XK_2 = 0x032,
@@ -74,9 +74,12 @@ pub enum Keysym {
 }
 
 impl Keysym {
+    /// convert a keysym to its canonical name, this is used to map the firmware keycodes to
+    /// keysymbols which are used to match on runtime against Keypress Events
     pub fn canonical_name(&self) -> &str {
         match self {
             Keysym::XK_BackSpace => "XK_BackSpace",
+            Keysym::XK_Return => "XK_Return",
             Keysym::XK_0 => "XK_0",
             Keysym::XK_1 => "XK_1",
             Keysym::XK_2 => "XK_2",
@@ -139,7 +142,6 @@ impl Keysym {
             Keysym::XK_x => "XK_x",
             Keysym::XK_y => "XK_y",
             Keysym::XK_z => "XK_z",
-            Keysym::XK_Return => "XK_Return",
         }
     }
 }

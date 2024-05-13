@@ -92,7 +92,7 @@ fn grab_key(
             key,
             keyboard_mode: GrabMode::Async,
             pointer_mode: GrabMode::Async,
-            owner_events: false,
+            owner_events: true,
         }),
     )
     .expect("failed to grab keyboard key");

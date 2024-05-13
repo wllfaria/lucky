@@ -1,6 +1,6 @@
 mod config;
 mod config_loader;
-mod keysyms;
+pub mod keysyms;
 
 pub use config::Config;
 use config_loader::UnresolvedConfig;
@@ -11,8 +11,7 @@ static CONFIG_FILE: &str = "config.toml";
 static XDG_HOME: &str = "XDG_CONFIG_HOME";
 static LUCKY_CONF_ENV_VAR: &str = "LUCKY_CONFIG";
 
-/// Verify if `XDG_HOME`/.config/lucky/config.toml exists and returns the path to it in case it
-/// exists
+/// Verify if `XDG_HOME`/.config/lucky/config.toml exists
 fn get_config_dir_path() -> Option<PathBuf> {
     let var = match std::env::var(XDG_HOME) {
         Ok(home_path) => Some(
@@ -26,7 +25,6 @@ fn get_config_dir_path() -> Option<PathBuf> {
     var
 }
 
-/// Try to load the config from the file on a given path
 fn load_config_from_file<P>(path: P) -> anyhow::Result<Config>
 where
     P: AsRef<Path>,

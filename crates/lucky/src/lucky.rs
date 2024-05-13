@@ -2,12 +2,13 @@ use config::Config;
 use std::sync::{mpsc::channel, Arc, Mutex};
 use xcb::x::{self, ChangeWindowAttributes, ConfigureWindow, MapWindow};
 
-use crate::{cursor::Cursor, keyboard::Keyboard, keys::Keysym};
+use crate::{cursor::Cursor, event::EventContext, handlers::Handlers, keyboard::Keyboard};
 
 pub struct Lucky {
     conn: Arc<xcb::Connection>,
     keyboard: Keyboard,
-    config: Arc<Mutex<Config>>,
+    config: Config,
+    handlers: Handlers,
 }
 
 impl Lucky {
@@ -41,10 +42,11 @@ impl Lucky {
             conn,
             keyboard,
             config,
+            handlers: Handlers::default(),
         }
     }
 
-    pub fn run(self) {
+    pub fn run(mut self) {
         let (sender, receiver) = channel::<XEvent>();
 
         let conn = self.conn.clone();
@@ -77,13 +79,13 @@ impl Lucky {
         loop {
             if let Ok(event) = receiver.recv() {
                 match event {
-                    XEvent::KeyPress(e) => {
-                        if let Ok(keysym) =
-                            Keysym::try_from(self.keyboard.state.key_get_one_sym(e.detail().into()))
-                        {
-                            tracing::debug!("{keysym} {}", e.detail());
-                            tracing::debug!("{:?}", e.state());
-                        }
+                    XEvent::KeyPress(event) => {
+                        self.handlers.on_key_press(EventContext {
+                            event,
+                            conn: self.conn.clone(),
+                            keyboard: &self.keyboard,
+                            config: &self.config,
+                        });
                     }
                     XEvent::ConfigureRequest(_) => todo!(),
                     XEvent::MapRequest(e) => {
