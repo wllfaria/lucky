@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use config::Config;
+use std::{collections::HashMap, sync::Arc};
 use xcb::x::{GrabKey, GrabMode, ModMask};
 use xkbcommon::xkb;
 
@@ -7,7 +8,7 @@ pub struct Keyboard {
 }
 
 impl Keyboard {
-    pub fn new(conn: Arc<xcb::Connection>, _root: xcb::x::Window) -> Self {
+    pub fn new(conn: Arc<xcb::Connection>, root: xcb::x::Window, config: &Config) -> Self {
         conn.wait_for_reply(conn.send_request(&xcb::xkb::UseExtension {
             wanted_major: xkb::x11::MIN_MAJOR_XKB_VERSION,
             wanted_minor: xkb::x11::MIN_MINOR_XKB_VERSION,
@@ -47,19 +48,32 @@ impl Keyboard {
             xkb::KEYMAP_COMPILE_NO_FLAGS,
         );
         let state = xkbcommon::xkb::x11::state_new_from_device(&keymap, &conn, device_id);
+        let mut keycode_map = HashMap::new();
+
+        keymap.key_for_each(|_, keycode| {
+            if let Some(keysym) = state.key_get_one_sym(keycode).name() {
+                keycode_map.insert(keysym, keycode.raw());
+            }
+        });
+
+        config.actions().iter().for_each(|action| {
+            conn.check_request(
+                conn.send_request_checked(&GrabKey {
+                    modifiers: ModMask::from_bits(action.modifiers())
+                        .expect("no invalid modifiers should be exist at this point"),
+                    grab_window: root,
+                    key: *keycode_map
+                        .get(action.key().canonical_name())
+                        .expect("should only have valid keys at this point")
+                        as u8,
+                    keyboard_mode: GrabMode::Async,
+                    pointer_mode: GrabMode::Async,
+                    owner_events: false,
+                }),
+            )
+            .expect("failed to grab keyboard key");
+        });
 
         Self { state }
     }
-}
-
-fn grab_key(conn: Arc<xcb::Connection>, root: xcb::x::Window) {
-    conn.check_request(conn.send_request_checked(&GrabKey {
-        modifiers: ModMask::ANY,
-        grab_window: root,
-        key: xcb::x::GRAB_ANY,
-        keyboard_mode: GrabMode::Async,
-        pointer_mode: GrabMode::Async,
-        owner_events: true,
-    }))
-    .expect("failed to grab keyboard key");
 }

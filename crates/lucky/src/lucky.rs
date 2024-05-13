@@ -1,5 +1,6 @@
+use config::Config;
 use std::sync::{mpsc::channel, Arc};
-use xcb::x::{self, ChangeWindowAttributes};
+use xcb::x::{self, ChangeWindowAttributes, ConfigureWindow, MapWindow};
 
 use crate::{cursor::Cursor, keyboard::Keyboard, keys::Keysym};
 
@@ -9,7 +10,7 @@ pub struct Lucky {
 }
 
 impl Lucky {
-    pub fn new() -> Self {
+    pub fn new(config: Config) -> Self {
         let (conn, _) = xcb::Connection::connect(None).expect("failed to initialize self.conn to the X server. Check the DISPLAY environment variable");
 
         let conn = Arc::new(conn);
@@ -22,7 +23,7 @@ impl Lucky {
             .expect("should have at least a single window");
         let root = screen.root();
 
-        let keyboard = Keyboard::new(conn.clone(), root);
+        let keyboard = Keyboard::new(conn.clone(), root, &config);
 
         conn.check_request(conn.send_request_checked(&ChangeWindowAttributes {
             window: root,
@@ -41,8 +42,9 @@ impl Lucky {
     pub fn run(self) {
         let (sender, receiver) = channel::<XEvent>();
 
+        let conn = self.conn.clone();
         std::thread::spawn(move || loop {
-            if let Ok(event) = self.conn.wait_for_event() {
+            if let Ok(event) = conn.wait_for_event() {
                 match event {
                     xcb::Event::X(xcb::x::Event::KeyPress(e)) => {
                         if sender.send(XEvent::KeyPress(e)).is_err() {
@@ -51,15 +53,20 @@ impl Lucky {
                         }
                     }
                     xcb::Event::X(xcb::x::Event::ConfigureRequest(_)) => todo!(),
-                    xcb::Event::X(xcb::x::Event::MapRequest(_)) => todo!(),
+                    xcb::Event::X(xcb::x::Event::MapRequest(e)) => {
+                        if sender.send(XEvent::MapRequest(e)).is_err() {
+                            tracing::debug!("failed to send event through channel");
+                            std::process::abort();
+                        }
+                    }
                     xcb::Event::X(xcb::x::Event::PropertyNotify(_)) => todo!(),
                     xcb::Event::X(xcb::x::Event::EnterNotify(_)) => todo!(),
-                    xcb::Event::X(xcb::x::Event::UnmapNotify(_)) => todo!(),
+                    xcb::Event::X(xcb::x::Event::UnmapNotify(_)) => {}
                     xcb::Event::X(xcb::x::Event::DestroyNotify(_)) => todo!(),
                     _ => (),
                 };
             };
-            self.conn.flush().unwrap();
+            conn.flush().unwrap();
         });
 
         loop {
@@ -69,15 +76,38 @@ impl Lucky {
                         if let Ok(keysym) =
                             Keysym::try_from(self.keyboard.state.key_get_one_sym(e.detail().into()))
                         {
-                            tracing::debug!("{keysym}");
+                            tracing::debug!("{keysym} {}", e.detail());
+                            tracing::debug!("{:?}", e.state());
                         }
                     }
                     XEvent::ConfigureRequest(_) => todo!(),
-                    XEvent::MapRequest(_) => todo!(),
-                    XEvent::PropertyNotify(_) => todo!(),
-                    XEvent::EnterNotify(_) => todo!(),
-                    XEvent::UnmapNotify(_) => todo!(),
-                    XEvent::DestroyNotify(_) => todo!(),
+                    XEvent::MapRequest(e) => {
+                        let root_win = self
+                            .conn
+                            .get_setup()
+                            .roots()
+                            .next()
+                            .expect("should have at least a single window");
+
+                        let window = e.window();
+
+                        let cookies = self.conn.send_request_checked(&ConfigureWindow {
+                            window: e.window(),
+                            value_list: &[
+                                x::ConfigWindow::X(0),
+                                x::ConfigWindow::Y(0),
+                                x::ConfigWindow::Width(root_win.width_in_pixels().into()),
+                                x::ConfigWindow::Height(root_win.height_in_pixels().into()),
+                            ],
+                        });
+                        self.conn.check_request(cookies).unwrap();
+                        let cookies = self.conn.send_request_checked(&MapWindow { window });
+                        self.conn.check_request(cookies).unwrap();
+                    }
+                    XEvent::PropertyNotify(_) => {}
+                    XEvent::EnterNotify(_) => {}
+                    XEvent::UnmapNotify(_) => {}
+                    XEvent::DestroyNotify(_) => {}
                 }
             }
         }
@@ -93,24 +123,3 @@ pub enum XEvent {
     UnmapNotify(xcb::x::UnmapNotifyEvent),
     DestroyNotify(xcb::x::DestroyNotifyEvent),
 }
-
-// let root_win = conn
-//     .get_setup()
-//     .roots()
-//     .next()
-//     .expect("should have at least a single window");
-//
-// let window = e.window();
-//
-// let cookies = conn.send_request_checked(&ConfigureWindow {
-//     window: e.window(),
-//     value_list: &[
-//         x::ConfigWindow::X(0),
-//         x::ConfigWindow::Y(0),
-//         x::ConfigWindow::Width(root_win.width_in_pixels().into()),
-//         x::ConfigWindow::Height(root_win.height_in_pixels().into()),
-//     ],
-// });
-// conn.check_request(cookies)?;
-// let cookies = conn.send_request_checked(&MapWindow { window });
-// conn.check_request(cookies)?;

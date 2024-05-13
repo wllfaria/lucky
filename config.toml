@@ -1,0 +1,6 @@
+leader = "Mod1"
+
+[[actions]]
+modifiers = ["Leader"]
+key = "q"
+action = "Close"

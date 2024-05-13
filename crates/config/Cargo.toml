@@ -4,3 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow.workspace = true
+xkbcommon.workspace = true
+tracing.workspace = true
+xcb.workspace = true
+
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"

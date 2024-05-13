@@ -1,1 +1,149 @@
-pub struct ConfigLoader {}
+use crate::config::{Action, AvailableActions, AvailableLeaderKeys, Config};
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct UnresolvedConfig {
+    leader: UnresolvedLeader,
+    actions: Vec<UnresolvedActionEntry>,
+}
+
+#[derive(Deserialize)]
+enum UnresolvedLeader {
+    Control,
+    Shift,
+    Mod1,
+}
+
+#[derive(Deserialize, Clone)]
+enum UnresolvedModifier {
+    Leader,
+    Control,
+    Shift,
+    Mod1,
+}
+
+#[derive(Deserialize)]
+struct UnresolvedActionEntry {
+    modifiers: Vec<UnresolvedModifier>,
+    key: String,
+    action: UnresolvedAction,
+}
+
+#[derive(Deserialize)]
+enum UnresolvedAction {
+    FocusLeft,
+    FocusDown,
+    FocusUp,
+    FocusRight,
+    MoveLeft,
+    MoveDown,
+    MoveUp,
+    MoveRight,
+    Close,
+    Reload,
+    Workspace1,
+    Workspace2,
+    Workspace3,
+    Workspace4,
+    Workspace5,
+    Workspace6,
+    Workspace7,
+    Workspace8,
+    Workspace9,
+    Workspace0,
+}
+
+impl From<AvailableLeaderKeys> for UnresolvedModifier {
+    fn from(value: AvailableLeaderKeys) -> Self {
+        match value {
+            AvailableLeaderKeys::Mod1 => UnresolvedModifier::Mod1,
+            AvailableLeaderKeys::Shift => UnresolvedModifier::Shift,
+            AvailableLeaderKeys::Control => UnresolvedModifier::Control,
+        }
+    }
+}
+
+impl TryFrom<UnresolvedConfig> for Config {
+    type Error = ();
+
+    fn try_from(value: UnresolvedConfig) -> Result<Self, Self::Error> {
+        let mut value = value;
+        let leader = match value.leader {
+            UnresolvedLeader::Shift => AvailableLeaderKeys::Shift,
+            UnresolvedLeader::Mod1 => AvailableLeaderKeys::Mod1,
+            UnresolvedLeader::Control => AvailableLeaderKeys::Control,
+        };
+
+        let mut actions: Vec<Action> = vec![];
+        value.actions.iter_mut().for_each(|action| {
+            action.modifiers = action
+                .modifiers
+                .clone()
+                .into_iter()
+                .map(|modifier| match modifier {
+                    UnresolvedModifier::Leader => leader.clone().into(),
+                    _ => modifier,
+                })
+                .collect::<Vec<UnresolvedModifier>>()
+        });
+
+        for action in value.actions.into_iter() {
+            actions.push(action.try_into()?);
+        }
+
+        Ok(Self { actions, leader })
+    }
+}
+
+impl TryFrom<UnresolvedActionEntry> for Action {
+    type Error = ();
+
+    fn try_from(value: UnresolvedActionEntry) -> Result<Self, Self::Error> {
+        Ok(Self {
+            action: value.action.into(),
+            key: value.key.as_str().try_into()?,
+            modifier: value
+                .modifiers
+                .into_iter()
+                .fold(0, |acc, modifier| acc + u32::from(modifier)),
+        })
+    }
+}
+
+impl From<UnresolvedAction> for AvailableActions {
+    fn from(value: UnresolvedAction) -> Self {
+        match value {
+            UnresolvedAction::FocusLeft => AvailableActions::FocusLeft,
+            UnresolvedAction::FocusDown => AvailableActions::FocusDown,
+            UnresolvedAction::FocusUp => AvailableActions::FocusUp,
+            UnresolvedAction::FocusRight => AvailableActions::FocusRight,
+            UnresolvedAction::MoveLeft => AvailableActions::MoveLeft,
+            UnresolvedAction::MoveDown => AvailableActions::MoveDown,
+            UnresolvedAction::MoveUp => AvailableActions::MoveUp,
+            UnresolvedAction::MoveRight => AvailableActions::MoveRight,
+            UnresolvedAction::Close => AvailableActions::Close,
+            UnresolvedAction::Reload => AvailableActions::Reload,
+            UnresolvedAction::Workspace1 => AvailableActions::Workspace1,
+            UnresolvedAction::Workspace2 => AvailableActions::Workspace2,
+            UnresolvedAction::Workspace3 => AvailableActions::Workspace3,
+            UnresolvedAction::Workspace4 => AvailableActions::Workspace4,
+            UnresolvedAction::Workspace5 => AvailableActions::Workspace5,
+            UnresolvedAction::Workspace6 => AvailableActions::Workspace6,
+            UnresolvedAction::Workspace7 => AvailableActions::Workspace7,
+            UnresolvedAction::Workspace8 => AvailableActions::Workspace8,
+            UnresolvedAction::Workspace9 => AvailableActions::Workspace9,
+            UnresolvedAction::Workspace0 => AvailableActions::Workspace0,
+        }
+    }
+}
+
+impl From<UnresolvedModifier> for u32 {
+    fn from(value: UnresolvedModifier) -> u32 {
+        match value {
+            UnresolvedModifier::Shift => 0x00000001,
+            UnresolvedModifier::Control => 0x00000004,
+            UnresolvedModifier::Mod1 => 0x00000008,
+            _ => 0x00000000,
+        }
+    }
+}
