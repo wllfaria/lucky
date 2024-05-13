@@ -44,7 +44,7 @@ where
 /// * If set, `LUCKY_CONFIG` will be prioritized and the config will be loaded from there;
 /// * If not, will attempt to load from `XDG_HOME`/.config/lucky/config.toml;
 /// * If not present on any of the directories above, will load the default configuration;
-pub fn load_config() -> anyhow::Result<Config> {
+pub fn load_config() -> Config {
     let config_path = match std::env::var(LUCKY_CONF_ENV_VAR) {
         Ok(var) => Some(PathBuf::from(&var).join(CONFIG_FILE)),
         Err(_) => get_config_dir_path(),
@@ -52,4 +52,5 @@ pub fn load_config() -> anyhow::Result<Config> {
     config_path
         .map(load_config_from_file)
         .unwrap_or(Ok(Default::default()))
+        .unwrap()
 }

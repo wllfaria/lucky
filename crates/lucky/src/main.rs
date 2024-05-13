@@ -12,8 +12,7 @@ fn main() -> anyhow::Result<()> {
         .with_max_level(Level::TRACE)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("failed to set global subscriber");
-    let config = config::load_config()?;
-    tracing::debug!("{config:#?}");
+    let config = config::load_config();
 
     Lucky::new(config).run();
 

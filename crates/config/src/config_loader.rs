@@ -1,10 +1,11 @@
-use crate::config::{Action, AvailableActions, AvailableLeaderKeys, Config};
+use crate::config::{Action, AvailableActions, AvailableLeaderKeys, Command, Config};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct UnresolvedConfig {
     leader: UnresolvedLeader,
     actions: Vec<UnresolvedActionEntry>,
+    commands: Vec<UnresolvedCommandEntry>,
 }
 
 #[derive(Deserialize)]
@@ -27,6 +28,13 @@ struct UnresolvedActionEntry {
     modifiers: Vec<UnresolvedModifier>,
     key: String,
     action: UnresolvedAction,
+}
+
+#[derive(Deserialize)]
+struct UnresolvedCommandEntry {
+    modifiers: Vec<UnresolvedModifier>,
+    key: String,
+    command: String,
 }
 
 #[derive(Deserialize)]
@@ -68,30 +76,45 @@ impl TryFrom<UnresolvedConfig> for Config {
 
     fn try_from(value: UnresolvedConfig) -> Result<Self, Self::Error> {
         let mut value = value;
+
+        tracing::debug!("failed actions");
+
         let leader = match value.leader {
             UnresolvedLeader::Shift => AvailableLeaderKeys::Shift,
             UnresolvedLeader::Mod1 => AvailableLeaderKeys::Mod1,
             UnresolvedLeader::Control => AvailableLeaderKeys::Control,
         };
 
-        let mut actions: Vec<Action> = vec![];
         value.actions.iter_mut().for_each(|action| {
-            action.modifiers = action
-                .modifiers
-                .clone()
-                .into_iter()
-                .map(|modifier| match modifier {
-                    UnresolvedModifier::Leader => leader.clone().into(),
-                    _ => modifier,
-                })
-                .collect::<Vec<UnresolvedModifier>>()
+            action.modifiers.iter_mut().for_each(|modifier| {
+                if let UnresolvedModifier::Leader = modifier {
+                    *modifier = leader.clone().into();
+                }
+            })
+        });
+        value.commands.iter_mut().for_each(|command| {
+            command.modifiers.iter_mut().for_each(|modifier| {
+                if let UnresolvedModifier::Leader = modifier {
+                    *modifier = leader.clone().into();
+                }
+            })
         });
 
+        let mut actions: Vec<Action> = vec![];
         for action in value.actions.into_iter() {
             actions.push(action.try_into()?);
         }
 
-        Ok(Self { actions, leader })
+        let mut commands: Vec<Command> = vec![];
+        for command in value.commands.into_iter() {
+            commands.push(command.try_into()?);
+        }
+
+        Ok(Self {
+            actions,
+            leader,
+            commands,
+        })
     }
 }
 
@@ -107,6 +130,24 @@ impl TryFrom<UnresolvedActionEntry> for Action {
                 .into_iter()
                 .fold(0, |acc, modifier| acc + u32::from(modifier)),
         })
+    }
+}
+
+impl TryFrom<UnresolvedCommandEntry> for Command {
+    type Error = ();
+
+    fn try_from(value: UnresolvedCommandEntry) -> Result<Self, Self::Error> {
+        tracing::debug!("command start");
+        let a = Self {
+            command: value.command,
+            key: value.key.as_str().try_into()?,
+            modifier: value
+                .modifiers
+                .into_iter()
+                .fold(0, |acc, modifier| acc + u32::from(modifier)),
+        };
+        tracing::debug!("command");
+        Ok(a)
     }
 }
 

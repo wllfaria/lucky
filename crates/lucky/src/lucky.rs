@@ -1,5 +1,5 @@
 use config::Config;
-use std::sync::{mpsc::channel, Arc};
+use std::sync::{mpsc::channel, Arc, Mutex};
 use xcb::x::{self, ChangeWindowAttributes, ConfigureWindow, MapWindow};
 
 use crate::{cursor::Cursor, keyboard::Keyboard, keys::Keysym};
@@ -7,6 +7,7 @@ use crate::{cursor::Cursor, keyboard::Keyboard, keys::Keysym};
 pub struct Lucky {
     conn: Arc<xcb::Connection>,
     keyboard: Keyboard,
+    config: Arc<Mutex<Config>>,
 }
 
 impl Lucky {
@@ -36,7 +37,11 @@ impl Lucky {
         }))
         .expect("failed to subscribe for substructure redirection");
 
-        Self { conn, keyboard }
+        Self {
+            conn,
+            keyboard,
+            config,
+        }
     }
 
     pub fn run(self) {

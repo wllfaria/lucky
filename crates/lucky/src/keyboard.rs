@@ -57,23 +57,43 @@ impl Keyboard {
         });
 
         config.actions().iter().for_each(|action| {
-            conn.check_request(
-                conn.send_request_checked(&GrabKey {
-                    modifiers: ModMask::from_bits(action.modifiers())
-                        .expect("no invalid modifiers should be exist at this point"),
-                    grab_window: root,
-                    key: *keycode_map
-                        .get(action.key().canonical_name())
-                        .expect("should only have valid keys at this point")
-                        as u8,
-                    keyboard_mode: GrabMode::Async,
-                    pointer_mode: GrabMode::Async,
-                    owner_events: false,
-                }),
-            )
-            .expect("failed to grab keyboard key");
+            let keycode = *keycode_map
+                .get(action.key().canonical_name())
+                .expect("should only have valid keys at this point")
+                as u8;
+
+            grab_key(conn.clone(), action.modifiers(), keycode, root);
+        });
+
+        config.commands().iter().for_each(|command| {
+            let keycode = *keycode_map
+                .get(command.key().canonical_name())
+                .expect("should only have valid keys at this point")
+                as u8;
+
+            grab_key(conn.clone(), command.modifiers(), keycode, root);
         });
 
         Self { state }
     }
+}
+
+fn grab_key(
+    conn: Arc<xcb::Connection>,
+    modifiers: xkbcommon::xkb::ModMask,
+    key: u8,
+    grab_window: xcb::x::Window,
+) {
+    conn.check_request(
+        conn.send_request_checked(&GrabKey {
+            modifiers: ModMask::from_bits(modifiers)
+                .expect("no invalid modifiers should be exist at this point"),
+            grab_window,
+            key,
+            keyboard_mode: GrabMode::Async,
+            pointer_mode: GrabMode::Async,
+            owner_events: false,
+        }),
+    )
+    .expect("failed to grab keyboard key");
 }

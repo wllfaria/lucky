@@ -8,6 +8,7 @@ use std::convert::TryFrom;
 #[derive(Debug, Clone)]
 pub enum Keysym {
     XK_BackSpace = 0xff08,
+    XK_Return = 0x00a4,
     XK_0 = 0x030,
     XK_1 = 0x031,
     XK_2 = 0x032,
@@ -138,6 +139,7 @@ impl Keysym {
             Keysym::XK_x => "XK_x",
             Keysym::XK_y => "XK_y",
             Keysym::XK_z => "XK_z",
+            Keysym::XK_Return => "XK_Return",
         }
     }
 }
@@ -148,6 +150,7 @@ impl TryFrom<xkbcommon::xkb::Keysym> for Keysym {
     fn try_from(k: xkbcommon::xkb::Keysym) -> Result<Self, Self::Error> {
         match k {
             x if u32::from(x) == Keysym::XK_BackSpace as u32 => Ok(Keysym::XK_BackSpace),
+            x if u32::from(x) == Keysym::XK_Return as u32 => Ok(Keysym::XK_Return),
             x if u32::from(x) == Keysym::XK_0 as u32 => Ok(Keysym::XK_0),
             x if u32::from(x) == Keysym::XK_1 as u32 => Ok(Keysym::XK_1),
             x if u32::from(x) == Keysym::XK_2 as u32 => Ok(Keysym::XK_2),
@@ -326,6 +329,7 @@ impl TryFrom<&str> for Keysym {
             "x" => Ok(Keysym::XK_x),
             "y" => Ok(Keysym::XK_y),
             "z" => Ok(Keysym::XK_z),
+            "Enter" => Ok(Keysym::XK_Return),
             _ => Err(()),
         }
     }

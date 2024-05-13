@@ -4,3 +4,8 @@ leader = "Mod1"
 modifiers = ["Leader"]
 key = "q"
 action = "Close"
+
+[[commands]]
+modifiers = ["Leader"]
+key = "Enter"
+command = "wezterm"
