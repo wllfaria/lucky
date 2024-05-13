@@ -1,6 +1,13 @@
-use config::Config;
-use std::{collections::HashMap, rc::Rc, sync::Arc};
-use xcb::x::{ConfigureWindow, MapWindow};
+use config::{AvailableActions, Config};
+use std::{
+    collections::{HashMap, VecDeque},
+    rc::Rc,
+    sync::Arc,
+};
+use xcb::{
+    x::{ConfigureWindow, MapWindow},
+    Xid,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct Client {
@@ -13,7 +20,7 @@ pub struct Clients {
     conn: Arc<xcb::Connection>,
     config: Rc<Config>,
     pub active_workspace: u8,
-    pub clients: Vec<Client>,
+    pub clients: VecDeque<Client>,
     pub active_windows: HashMap<u8, Option<xcb::x::Window>>,
 }
 
@@ -23,7 +30,7 @@ impl Clients {
             conn,
             config,
             active_workspace: 1,
-            clients: vec![],
+            clients: VecDeque::new(),
             active_windows: HashMap::default(),
         }
     }
@@ -31,7 +38,7 @@ impl Clients {
     pub fn create(&mut self, window: xcb::x::Window) {
         self.active_windows
             .insert(self.active_workspace, Some(window));
-        self.clients.push(Client {
+        self.clients.push_front(Client {
             window,
             visible: true,
             workspace: Some(self.active_workspace),
@@ -65,10 +72,95 @@ impl Clients {
         Ok(())
     }
 
+    pub fn destroy(&mut self, window: xcb::x::Window) {
+        self.clients.retain(|client| client.window.ne(&window));
+
+        if self.active_client().eq(&Some(window)) {
+            let active_client = self.clients.iter().next().map(|c| c.window);
+            self.set_active_client(active_client);
+        }
+    }
+
     pub fn active_client(&mut self) -> Option<xcb::x::Window> {
         self.active_windows
             .entry(self.active_workspace)
             .or_insert(None)
             .to_owned()
+    }
+
+    pub fn set_active_client(&mut self, window: Option<xcb::x::Window>) -> anyhow::Result<()> {
+        if let Some(window) = window {
+            self.active_windows
+                .insert(self.active_workspace, Some(window));
+        }
+
+        self.conn.flush()?;
+
+        Ok(())
+    }
+
+    pub fn handle_action(&mut self, action: &AvailableActions) -> anyhow::Result<()> {
+        tracing::debug!("{:?}", self.clients);
+        let client = self.active_client();
+
+        if let Some(window) = client {
+            match action {
+                AvailableActions::Close => {
+                    let (wm_protocols, wm_del_window) = (
+                        self.conn
+                            .wait_for_reply(self.conn.send_request(&xcb::x::InternAtom {
+                                only_if_exists: true,
+                                name: b"WM_PROTOCOLS",
+                            }))?
+                            .atom(),
+                        self.conn
+                            .wait_for_reply(self.conn.send_request(&xcb::x::InternAtom {
+                                only_if_exists: true,
+                                name: b"WM_DELETE_WINDOW",
+                            }))?
+                            .atom(),
+                    );
+
+                    self.conn.check_request(self.conn.send_request_checked(
+                        &xcb::x::ChangeProperty {
+                            mode: xcb::x::PropMode::Replace,
+                            window,
+                            property: wm_protocols,
+                            r#type: xcb::x::ATOM_ATOM,
+                            data: &[wm_del_window],
+                        },
+                    ))?;
+
+                    self.conn.flush()?;
+
+                    let event = xcb::x::ClientMessageEvent::new(
+                        window,
+                        wm_protocols,
+                        xcb::x::ClientMessageData::Data32([
+                            wm_del_window.resource_id(),
+                            xcb::x::CURRENT_TIME,
+                            0,
+                            0,
+                            0,
+                        ]),
+                    );
+
+                    self.conn.send_request(&xcb::x::SendEvent {
+                        propagate: false,
+                        destination: xcb::x::SendEventDest::Window(window),
+                        event_mask: xcb::x::EventMask::NO_EVENT,
+                        event: &event,
+                    });
+
+                    self.conn.flush()?;
+                    self.destroy(window)
+                }
+                AvailableActions::MoveUp => {}
+                _ => {}
+            }
+        }
+        tracing::debug!("{:?}", self.clients);
+
+        Ok(())
     }
 }

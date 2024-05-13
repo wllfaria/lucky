@@ -65,13 +65,13 @@ impl Lucky {
                             std::process::abort();
                         }
                     }
-                    xcb::Event::X(xcb::x::Event::ConfigureRequest(_)) => todo!(),
                     xcb::Event::X(xcb::x::Event::MapRequest(e)) => {
                         if sender.send(XEvent::MapRequest(e)).is_err() {
                             tracing::debug!("failed to send event through channel");
                             std::process::abort();
                         }
                     }
+                    xcb::Event::X(xcb::x::Event::ConfigureRequest(_)) => todo!(),
                     xcb::Event::X(xcb::x::Event::PropertyNotify(_)) => todo!(),
                     xcb::Event::X(xcb::x::Event::EnterNotify(_)) => todo!(),
                     xcb::Event::X(xcb::x::Event::UnmapNotify(_)) => {}
@@ -85,15 +85,13 @@ impl Lucky {
         loop {
             if let Ok(event) = receiver.recv() {
                 match event {
-                    XEvent::KeyPress(event) => {
-                        self.handlers.on_key_press(EventContext {
-                            event,
-                            conn: self.conn.clone(),
-                            keyboard: &self.keyboard,
-                            config: self.config.clone(),
-                            clients: self.clients.clone(),
-                        });
-                    }
+                    XEvent::KeyPress(event) => self.handlers.on_key_press(EventContext {
+                        event,
+                        conn: self.conn.clone(),
+                        keyboard: &self.keyboard,
+                        config: self.config.clone(),
+                        clients: self.clients.clone(),
+                    }),
                     XEvent::MapRequest(event) => self.handlers.on_map_request(EventContext {
                         event,
                         conn: self.conn.clone(),
@@ -101,11 +99,11 @@ impl Lucky {
                         config: self.config.clone(),
                         clients: self.clients.clone(),
                     }),
-                    XEvent::ConfigureRequest(_) => todo!(),
-                    XEvent::PropertyNotify(_) => {}
                     XEvent::EnterNotify(_) => {}
                     XEvent::UnmapNotify(_) => {}
                     XEvent::DestroyNotify(_) => {}
+                    XEvent::PropertyNotify(_) => {}
+                    XEvent::ConfigureRequest(_) => todo!(),
                 }
             }
         }
