@@ -1,8 +1,10 @@
 mod atoms;
 mod clients;
+mod decorator;
 mod event;
 mod handlers;
 mod keyboard;
+mod layout_manager;
 mod lucky;
 
 use lucky::Lucky;

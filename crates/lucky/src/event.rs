@@ -1,4 +1,7 @@
-use crate::{atoms::Atoms, clients::Clients, keyboard::Keyboard};
+use crate::{
+    atoms::Atoms, clients::Clients, decorator::Decorator, keyboard::Keyboard,
+    layout_manager::LayoutManager,
+};
 use config::Config;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
@@ -18,6 +21,12 @@ pub struct EventContext<'ec, E> {
     /// All the clients currently being handled by the window manager, clients are how we call all
     /// the windows opened to avoid naming conflicts with `xcb::x::Window`
     pub clients: Rc<RefCell<Clients>>,
+    /// Layout manager handles how to arrange the windows based on the current active layout for
+    /// the during runtime
+    pub layout_manager: &'ec LayoutManager,
+    /// Decorator decorates a window with all the user-defined properties in the configuration file
+    /// prior to handling the client to the layout manager
+    pub decorator: &'ec Decorator,
     /// All the atoms that the window manager has cached and may be needed to handle an event
     pub atoms: &'ec Atoms,
 }
@@ -44,6 +53,8 @@ impl Clone for EventContext<'_, xcb::x::KeyPressEvent> {
             keyboard: self.keyboard,
             clients: self.clients.clone(),
             atoms: self.atoms,
+            decorator: self.decorator,
+            layout_manager: self.layout_manager,
         }
     }
 }
@@ -59,6 +70,8 @@ impl Clone for EventContext<'_, xcb::x::MapRequestEvent> {
             keyboard: self.keyboard,
             clients: self.clients.clone(),
             atoms: self.atoms,
+            decorator: self.decorator,
+            layout_manager: self.layout_manager,
         }
     }
 }
@@ -74,6 +87,8 @@ impl Clone for EventContext<'_, xcb::x::DestroyNotifyEvent> {
             keyboard: self.keyboard,
             clients: self.clients.clone(),
             atoms: self.atoms,
+            decorator: self.decorator,
+            layout_manager: self.layout_manager,
         }
     }
 }
@@ -102,6 +117,8 @@ impl Clone for EventContext<'_, xcb::x::EnterNotifyEvent> {
             keyboard: self.keyboard,
             clients: self.clients.clone(),
             atoms: self.atoms,
+            decorator: self.decorator,
+            layout_manager: self.layout_manager,
         }
     }
 }

@@ -13,14 +13,14 @@ pub struct Atoms {
 
 impl Atoms {
     pub fn new(conn: &Arc<xcb::Connection>) -> Self {
-        let wm_protocols = Self::get_intern_atom(&conn, b"WM_PROTOCOLS");
-        let wm_delete_window = Self::get_intern_atom(&conn, b"WM_DELETE_WINDOW");
-        let net_wm_name = Self::get_intern_atom(&conn, b"_NET_WM_NAME");
-        let net_wm_state = Self::get_intern_atom(&conn, b"_NET_WM_STATE");
-        let net_wm_window_type = Self::get_intern_atom(&conn, b"_NET_WM_WINDOW_TYPE");
-        let net_current_desktop = Self::get_intern_atom(&conn, b"_NET_CURRENT_DESKTOP");
-        let net_number_of_desktops = Self::get_intern_atom(&conn, b"_NET_NUMBER_OF_DESKTOPS");
-        let net_wm_desktop = Self::get_intern_atom(&conn, b"_NET_WM_DESKTOP");
+        let wm_protocols = Self::get_intern_atom(conn, b"WM_PROTOCOLS");
+        let wm_delete_window = Self::get_intern_atom(conn, b"WM_DELETE_WINDOW");
+        let net_wm_name = Self::get_intern_atom(conn, b"_NET_WM_NAME");
+        let net_wm_state = Self::get_intern_atom(conn, b"_NET_WM_STATE");
+        let net_wm_window_type = Self::get_intern_atom(conn, b"_NET_WM_WINDOW_TYPE");
+        let net_current_desktop = Self::get_intern_atom(conn, b"_NET_CURRENT_DESKTOP");
+        let net_number_of_desktops = Self::get_intern_atom(conn, b"_NET_NUMBER_OF_DESKTOPS");
+        let net_wm_desktop = Self::get_intern_atom(conn, b"_NET_WM_DESKTOP");
 
         Atoms {
             wm_protocols,

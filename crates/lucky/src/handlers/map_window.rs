@@ -9,9 +9,14 @@ impl Handler for MapWindowHandler {
         &mut self,
         context: EventContext<xcb::x::MapRequestEvent>,
     ) -> anyhow::Result<()> {
-        let mut clients = context.clients.borrow_mut();
-        clients.create(context.event.window())?;
-        clients.display(context.event.window())?;
+        context
+            .layout_manager
+            .enable_client_events(context.event.window())?;
+        context
+            .clients
+            .borrow_mut()
+            .create(context.event.window())?;
+        context.layout_manager.display_clients(&context.clients)?;
         Ok(())
     }
 }

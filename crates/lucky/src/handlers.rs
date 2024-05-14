@@ -17,7 +17,7 @@ pub struct Handlers {
 
 impl Default for Handlers {
     fn default() -> Self {
-        Self {
+        Handlers {
             handlers: vec![
                 Box::<CommandHandler>::default(),
                 Box::<ActionHandler>::default(),

@@ -1,5 +1,6 @@
 use crate::{
-    atoms::Atoms, clients::Clients, event::EventContext, handlers::Handlers, keyboard::Keyboard,
+    atoms::Atoms, clients::Clients, decorator::Decorator, event::EventContext, handlers::Handlers,
+    keyboard::Keyboard, layout_manager::LayoutManager,
 };
 use config::Config;
 use std::{
@@ -16,6 +17,8 @@ pub struct Lucky {
     handlers: Handlers,
     clients: Rc<RefCell<Clients>>,
     atoms: Atoms,
+    layout_manager: LayoutManager,
+    decorator: Decorator,
 }
 
 impl Lucky {
@@ -25,11 +28,14 @@ impl Lucky {
         let config = Rc::new(config);
         let root = Self::setup(&conn);
 
-        Self {
+        Lucky {
             clients: Rc::new(RefCell::new(Clients::new(conn.clone()))),
             keyboard: Keyboard::new(&conn, root, config.clone()),
+            layout_manager: LayoutManager::new(conn.clone(), config.clone()),
+            decorator: Decorator::new(conn.clone(), config.clone()),
             atoms: Atoms::new(&conn),
             handlers: Handlers::default(),
+
             conn,
             config,
         }
@@ -87,6 +93,8 @@ impl Lucky {
                         config: self.config.clone(),
                         clients: self.clients.clone(),
                         atoms: &self.atoms,
+                        decorator: &self.decorator,
+                        layout_manager: &self.layout_manager,
                     }),
                     XEvent::MapRequest(event) => self.handlers.on_map_request(EventContext {
                         event,
@@ -95,6 +103,8 @@ impl Lucky {
                         config: self.config.clone(),
                         clients: self.clients.clone(),
                         atoms: &self.atoms,
+                        decorator: &self.decorator,
+                        layout_manager: &self.layout_manager,
                     }),
                     XEvent::DestroyNotify(event) => self.handlers.on_destroy_notify(EventContext {
                         event,
@@ -103,6 +113,8 @@ impl Lucky {
                         config: self.config.clone(),
                         clients: self.clients.clone(),
                         atoms: &self.atoms,
+                        decorator: &self.decorator,
+                        layout_manager: &self.layout_manager,
                     }),
                     XEvent::EnterNotify(event) => self.handlers.on_enter_notify(EventContext {
                         event,
@@ -111,6 +123,8 @@ impl Lucky {
                         config: self.config.clone(),
                         clients: self.clients.clone(),
                         atoms: &self.atoms,
+                        decorator: &self.decorator,
+                        layout_manager: &self.layout_manager,
                     }),
                     XEvent::UnmapNotify(_) => {}
                     XEvent::PropertyNotify(_) => {}

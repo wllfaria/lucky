@@ -40,14 +40,14 @@ impl Keyboard {
         .expect("failed to select events from xkb");
 
         let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
-        let device_id = xkb::x11::get_core_keyboard_device_id(&conn);
+        let device_id = xkb::x11::get_core_keyboard_device_id(conn);
         let keymap = xkb::x11::keymap_new_from_device(
             &context,
-            &conn,
+            conn,
             device_id,
             xkb::KEYMAP_COMPILE_NO_FLAGS,
         );
-        let state = xkbcommon::xkb::x11::state_new_from_device(&keymap, &conn, device_id);
+        let state = xkbcommon::xkb::x11::state_new_from_device(&keymap, conn, device_id);
         let mut keycode_map = HashMap::new();
 
         keymap.key_for_each(|_, keycode| {
@@ -74,7 +74,7 @@ impl Keyboard {
             grab_key(conn.clone(), command.modifiers(), keycode, root);
         });
 
-        Self { state }
+        Keyboard { state }
     }
 }
 
