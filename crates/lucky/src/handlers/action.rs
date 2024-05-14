@@ -1,4 +1,5 @@
-use crate::{event::EventContext, handler::Handler};
+use crate::event::EventContext;
+use crate::handlers::handler::Handler;
 use config::keysyms::Keysym;
 
 #[derive(Default)]
@@ -21,7 +22,7 @@ impl Handler for ActionHandler {
                 context
                     .clients
                     .borrow_mut()
-                    .handle_action(action.action())?;
+                    .handle_action(action.action(), &context)?;
             }
         }
 

@@ -1,6 +1,6 @@
+use crate::event::EventContext;
+use crate::handlers::handler::Handler;
 use config::keysyms::Keysym;
-
-use crate::{event::EventContext, handler::Handler};
 
 #[derive(Default)]
 pub struct CommandHandler {}

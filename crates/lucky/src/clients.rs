@@ -8,6 +8,8 @@ use xcb::{
     Xid,
 };
 
+use crate::event::EventContext;
+
 #[derive(Debug, PartialEq)]
 pub struct Client {
     pub window: xcb::x::Window,
@@ -50,12 +52,14 @@ impl Clients {
     pub fn display(&mut self, window: xcb::x::Window) -> anyhow::Result<()> {
         for client in self.clients.iter() {
             if client.window.eq(&window) && client.visible {
+                // TODO: pass root window as part of the context
                 let root_win = self
                     .conn
                     .get_setup()
                     .roots()
                     .next()
                     .expect("should have at least a single window");
+                // TODO: we should actually map and divide the screen as needed
                 self.conn
                     .check_request(self.conn.send_request_checked(&ConfigureWindow {
                         window: client.window,
@@ -117,67 +121,71 @@ impl Clients {
         Ok(())
     }
 
-    pub fn handle_action(&mut self, action: &AvailableActions) -> anyhow::Result<()> {
-        tracing::debug!("{:?}", self.clients);
+    pub fn handle_action(
+        &mut self,
+        action: &AvailableActions,
+        context: &EventContext<xcb::x::KeyPressEvent>,
+    ) -> anyhow::Result<()> {
         let client = self.active_client();
 
         if let Some(window) = client {
             match action {
-                AvailableActions::Close => {
-                    let wm_protocols = self
-                        .conn
-                        .wait_for_reply(self.conn.send_request(&xcb::x::InternAtom {
-                            only_if_exists: true,
-                            name: b"WM_PROTOCOLS",
-                        }))?
-                        .atom();
-
-                    let wm_del_window = self
-                        .conn
-                        .wait_for_reply(self.conn.send_request(&xcb::x::InternAtom {
-                            only_if_exists: true,
-                            name: b"WM_DELETE_WINDOW",
-                        }))?
-                        .atom();
-
-                    self.conn.check_request(self.conn.send_request_checked(
-                        &xcb::x::ChangeProperty {
-                            mode: xcb::x::PropMode::Replace,
-                            window,
-                            property: wm_protocols,
-                            r#type: xcb::x::ATOM_ATOM,
-                            data: &[wm_del_window],
-                        },
-                    ))?;
-
-                    self.conn.flush()?;
-
-                    let event = xcb::x::ClientMessageEvent::new(
-                        window,
-                        wm_protocols,
-                        xcb::x::ClientMessageData::Data32([
-                            wm_del_window.resource_id(),
-                            xcb::x::CURRENT_TIME,
-                            0,
-                            0,
-                            0,
-                        ]),
-                    );
-
-                    self.conn.send_request(&xcb::x::SendEvent {
-                        propagate: false,
-                        destination: xcb::x::SendEventDest::Window(window),
-                        event_mask: xcb::x::EventMask::NO_EVENT,
-                        event: &event,
-                    });
-
-                    self.conn.flush()?;
-                    self.destroy(window)?;
-                }
+                AvailableActions::Close => self.close_client(window, context)?,
                 AvailableActions::MoveUp => {}
                 _ => {}
             }
         }
+
+        Ok(())
+    }
+
+    fn close_client(
+        &mut self,
+        window: xcb::x::Window,
+        context: &EventContext<xcb::x::KeyPressEvent>,
+    ) -> anyhow::Result<()> {
+        let cookie = self.conn.send_request(&xcb::x::GetProperty {
+            delete: false,
+            window,
+            property: context.atoms.wm_protocols,
+            r#type: xcb::x::ATOM_ATOM,
+            long_offset: 0,
+            long_length: 1024,
+        });
+
+        let protocols_reply = self.conn.wait_for_reply(cookie)?;
+        let atoms: &[xcb::x::Atom] = protocols_reply.value();
+
+        let supports_delete = atoms
+            .iter()
+            .any(|&atom| atom == context.atoms.wm_delete_window);
+
+        if supports_delete {
+            let event = xcb::x::ClientMessageEvent::new(
+                window,
+                context.atoms.wm_protocols,
+                xcb::x::ClientMessageData::Data32([
+                    context.atoms.wm_delete_window.resource_id(),
+                    xcb::x::CURRENT_TIME,
+                    0,
+                    0,
+                    0,
+                ]),
+            );
+
+            self.conn.send_request(&xcb::x::SendEvent {
+                propagate: false,
+                destination: xcb::x::SendEventDest::Window(window),
+                event_mask: xcb::x::EventMask::NO_EVENT,
+                event: &event,
+            });
+            self.conn.flush()?;
+        } else {
+            self.conn.send_request(&xcb::x::DestroyWindow { window });
+            self.conn.flush()?;
+        }
+
+        self.destroy(window)?;
 
         Ok(())
     }

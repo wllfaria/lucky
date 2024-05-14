@@ -1,4 +1,5 @@
-use crate::{event::EventContext, handler::Handler};
+use crate::event::EventContext;
+use crate::handlers::handler::Handler;
 
 #[derive(Default)]
 pub struct MapWindowHandler {}

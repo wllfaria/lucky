@@ -8,7 +8,7 @@ pub struct Keyboard {
 }
 
 impl Keyboard {
-    pub fn new(conn: Arc<xcb::Connection>, root: xcb::x::Window, config: Rc<Config>) -> Self {
+    pub fn new(conn: &Arc<xcb::Connection>, root: xcb::x::Window, config: Rc<Config>) -> Self {
         conn.wait_for_reply(conn.send_request(&xcb::xkb::UseExtension {
             wanted_major: xkb::x11::MIN_MAJOR_XKB_VERSION,
             wanted_minor: xkb::x11::MIN_MINOR_XKB_VERSION,

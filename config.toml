@@ -9,3 +9,8 @@ action = "Close"
 modifiers = ["Leader"]
 key = "Enter"
 command = "wezterm"
+
+[[commands]]
+modifiers = ["Control"]
+key = "Enter"
+command = "alacritty"

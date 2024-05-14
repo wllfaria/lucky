@@ -1,4 +1,4 @@
-use crate::{clients::Clients, keyboard::Keyboard};
+use crate::{atoms::Atoms, clients::Clients, keyboard::Keyboard};
 use config::Config;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
@@ -18,6 +18,8 @@ pub struct EventContext<'ec, E> {
     /// All the clients currently being handled by the window manager, clients are how we call all
     /// the windows opened to avoid naming conflicts with `xcb::x::Window`
     pub clients: Rc<RefCell<Clients>>,
+    /// All the atoms that the window manager has cached and may be needed to handle an event
+    pub atoms: &'ec Atoms,
 }
 
 impl Clone for EventContext<'_, xcb::x::KeyPressEvent> {
@@ -41,6 +43,7 @@ impl Clone for EventContext<'_, xcb::x::KeyPressEvent> {
             config: self.config.clone(),
             keyboard: self.keyboard,
             clients: self.clients.clone(),
+            atoms: self.atoms,
         }
     }
 }
@@ -55,6 +58,7 @@ impl Clone for EventContext<'_, xcb::x::MapRequestEvent> {
             config: self.config.clone(),
             keyboard: self.keyboard,
             clients: self.clients.clone(),
+            atoms: self.atoms,
         }
     }
 }
@@ -69,6 +73,7 @@ impl Clone for EventContext<'_, xcb::x::DestroyNotifyEvent> {
             config: self.config.clone(),
             keyboard: self.keyboard,
             clients: self.clients.clone(),
+            atoms: self.atoms,
         }
     }
 }
@@ -96,6 +101,7 @@ impl Clone for EventContext<'_, xcb::x::EnterNotifyEvent> {
             config: self.config.clone(),
             keyboard: self.keyboard,
             clients: self.clients.clone(),
+            atoms: self.atoms,
         }
     }
 }

@@ -1,11 +1,13 @@
 mod action;
 mod command;
+mod handler;
 mod hover;
 mod map_window;
 
-use crate::{event::EventContext, handler::Handler};
+use crate::event::EventContext;
 use action::ActionHandler;
 use command::CommandHandler;
+use handler::Handler;
 use hover::HoverHandler;
 use map_window::MapWindowHandler;
 

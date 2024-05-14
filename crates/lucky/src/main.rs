@@ -1,7 +1,6 @@
+mod atoms;
 mod clients;
-mod cursor;
 mod event;
-mod handler;
 mod handlers;
 mod keyboard;
 mod lucky;
