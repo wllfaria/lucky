@@ -334,9 +334,7 @@ impl TryFrom<&str> for Keysym {
             "y" => Ok(Keysym::XK_y),
             "z" => Ok(Keysym::XK_z),
             "Enter" => Ok(Keysym::XK_Return),
-            _ => Err(ConfigError::InvalidKey(format!(
-                "key {value} has invalid format"
-            ))),
+            _ => Err(ConfigError::Key(format!("key {value} has invalid format"))),
         }
     }
 }

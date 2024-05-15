@@ -68,11 +68,11 @@ enum UnresolvedAction {
 }
 
 pub enum ConfigError {
-    InvalidKey(String),
-    InvalidWorkspaces(String),
-    InvalidBorderWidth(String),
-    InvalidBorderColor(String),
-    InvalidColor(String),
+    Key(String),
+    Workspaces(String),
+    BorderWidth(String),
+    BorderColor(String),
+    Color(String),
 }
 
 impl From<AvailableLeaderKeys> for UnresolvedModifier {
@@ -123,14 +123,14 @@ impl TryFrom<UnresolvedConfig> for Config {
         }
 
         if value.workspaces.gt(&10) || value.workspaces.eq(&0) {
-            return Err(ConfigError::InvalidWorkspaces(format!(
-                "{} number of workspaces must be greater than 0, and up to 10",
+            return Err(ConfigError::Workspaces(format!(
+                "workspaces = {}: number of workspaces must be greater than 0, and up to 10",
                 value.workspaces
             )));
         }
 
         let border_color = Color::try_from(value.border_color.unwrap_or_default())
-            .map_err(|e| ConfigError::InvalidBorderColor(e.to_string()))?
+            .map_err(|e| ConfigError::BorderColor(e.to_string()))?
             .0;
 
         Ok(Self {

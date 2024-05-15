@@ -35,11 +35,11 @@ where
     match Config::try_from(config) {
         Ok(config) => Ok(config),
         Err(e) => match e {
-            ConfigError::InvalidKey(msg) => anyhow::bail!(msg),
-            ConfigError::InvalidWorkspaces(msg) => anyhow::bail!(msg),
-            ConfigError::InvalidBorderWidth(msg) => anyhow::bail!(msg),
-            ConfigError::InvalidBorderColor(msg) => anyhow::bail!(msg),
-            ConfigError::InvalidColor(msg) => anyhow::bail!(msg),
+            ConfigError::Key(msg) => anyhow::bail!(msg),
+            ConfigError::Workspaces(msg) => anyhow::bail!(msg),
+            ConfigError::BorderWidth(msg) => anyhow::bail!(msg),
+            ConfigError::BorderColor(msg) => anyhow::bail!(msg),
+            ConfigError::Color(msg) => anyhow::bail!(msg),
         },
     }
 }
