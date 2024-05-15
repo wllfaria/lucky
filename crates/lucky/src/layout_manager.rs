@@ -25,8 +25,7 @@ impl LayoutManager {
             value_list: &[(xcb::x::Cw::EventMask(
                 xcb::x::EventMask::PROPERTY_CHANGE
                     | xcb::x::EventMask::SUBSTRUCTURE_NOTIFY
-                    | xcb::x::EventMask::ENTER_WINDOW
-                    | xcb::x::EventMask::EXPOSURE,
+                    | xcb::x::EventMask::ENTER_WINDOW,
             ))],
         });
 
@@ -42,13 +41,6 @@ impl LayoutManager {
                 MasterLayout::display_clients(&self.conn, &clients, &self.config)?
             }
         }
-
-        Ok(())
-    }
-
-    pub fn display_client_frame(&self, client: xcb::x::Window) -> anyhow::Result<()> {
-        self.conn
-            .send_request(&xcb::x::MapWindow { window: client });
 
         Ok(())
     }
@@ -104,10 +96,11 @@ impl LayoutManager {
 
             self.conn.flush()?;
         } else {
-            let cookie = self.conn.send_request_checked(&xcb::x::DestroyWindow {
+            self.conn.send_request(&xcb::x::DestroyWindow {
                 window: client.frame,
             });
-            self.conn.check_request(cookie)?;
+
+            self.conn.flush()?;
         }
 
         Ok(())

@@ -101,6 +101,7 @@ impl Clients {
             let client = client.clone();
             self.open_clients
                 .retain(|client| client.window.ne(&client.window));
+            self.frames.retain(|frame| frame.ne(&client.frame));
             self.set_active_client()?;
             return Ok(Some(client.clone()));
         }

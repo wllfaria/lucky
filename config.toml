@@ -1,7 +1,7 @@
 leader = "Mod1"
 workspaces = 10
 
-border_width = 10
+border_width = 23
 
 [[actions]]
 modifiers = ["Leader"]
@@ -11,9 +11,9 @@ action = "Close"
 [[commands]]
 modifiers = ["Leader"]
 key = "Enter"
-command = "wezterm"
+command = "alacritty"
 
 [[commands]]
-modifiers = ["Control"]
-key = "Enter"
-command = "alacritty"
+modifiers = ["Leader"]
+key = "d"
+command = "thunar"
