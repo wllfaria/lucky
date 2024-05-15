@@ -122,3 +122,24 @@ impl Clone for EventContext<'_, xcb::x::EnterNotifyEvent> {
         }
     }
 }
+
+impl Clone for EventContext<'_, xcb::x::MapNotifyEvent> {
+    fn clone(&self) -> Self {
+        let event = xcb::x::MapNotifyEvent::new(
+            self.event.event(),
+            self.event.window(),
+            self.event.override_redirect(),
+        );
+
+        Self {
+            event,
+            conn: self.conn.clone(),
+            config: self.config.clone(),
+            keyboard: self.keyboard,
+            clients: self.clients.clone(),
+            atoms: self.atoms,
+            decorator: self.decorator,
+            layout_manager: self.layout_manager,
+        }
+    }
+}

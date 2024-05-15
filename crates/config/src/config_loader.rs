@@ -3,6 +3,9 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct UnresolvedConfig {
+    workspaces: u8,
+    border_width: Option<u16>,
+    border_color: Option<u32>,
     leader: UnresolvedLeader,
     actions: Vec<UnresolvedActionEntry>,
     commands: Vec<UnresolvedCommandEntry>,
@@ -108,7 +111,14 @@ impl TryFrom<UnresolvedConfig> for Config {
             commands.push(command.try_into()?);
         }
 
+        if value.workspaces.gt(&10) || value.workspaces.eq(&0) {
+            return Err(());
+        }
+
         Ok(Self {
+            workspaces: value.workspaces,
+            border_color: value.border_color.unwrap_or(0xff0000),
+            border_width: value.border_width.unwrap_or(1),
             actions,
             leader,
             commands,

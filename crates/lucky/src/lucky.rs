@@ -29,7 +29,7 @@ impl Lucky {
         let root = Self::setup(&conn);
 
         Lucky {
-            clients: Rc::new(RefCell::new(Clients::new(conn.clone()))),
+            clients: Rc::new(RefCell::new(Clients::new(&config))),
             keyboard: Keyboard::new(&conn, root, config.clone()),
             layout_manager: LayoutManager::new(conn.clone(), config.clone()),
             decorator: Decorator::new(conn.clone(), config.clone()),
@@ -56,6 +56,17 @@ impl Lucky {
                     }
                     xcb::Event::X(xcb::x::Event::MapRequest(e)) => {
                         if sender.send(XEvent::MapRequest(e)).is_err() {
+                            tracing::debug!("failed to send event through channel");
+                            std::process::abort();
+                        }
+                    }
+                    xcb::Event::X(xcb::x::Event::Expose(e)) => {
+                        tracing::debug!("here we should show the client {e:?}");
+                        conn.flush().unwrap();
+                    }
+                    xcb::Event::X(xcb::x::Event::MapNotify(e)) => {
+                        tracing::debug!("here we should show the map map client {e:?}");
+                        if sender.send(XEvent::MapNotify(e)).is_err() {
                             tracing::debug!("failed to send event through channel");
                             std::process::abort();
                         }
@@ -97,6 +108,16 @@ impl Lucky {
                         layout_manager: &self.layout_manager,
                     }),
                     XEvent::MapRequest(event) => self.handlers.on_map_request(EventContext {
+                        event,
+                        conn: self.conn.clone(),
+                        keyboard: &self.keyboard,
+                        config: self.config.clone(),
+                        clients: self.clients.clone(),
+                        atoms: &self.atoms,
+                        decorator: &self.decorator,
+                        layout_manager: &self.layout_manager,
+                    }),
+                    XEvent::MapNotify(event) => self.handlers.on_map_notify(EventContext {
                         event,
                         conn: self.conn.clone(),
                         keyboard: &self.keyboard,
@@ -192,6 +213,7 @@ impl Lucky {
 pub enum XEvent {
     KeyPress(xcb::x::KeyPressEvent),
     MapRequest(xcb::x::MapRequestEvent),
+    MapNotify(xcb::x::MapNotifyEvent),
     DestroyNotify(xcb::x::DestroyNotifyEvent),
     EnterNotify(xcb::x::EnterNotifyEvent),
     PropertyNotify(xcb::x::PropertyNotifyEvent),

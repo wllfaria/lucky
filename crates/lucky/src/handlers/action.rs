@@ -24,7 +24,7 @@ impl Handler for ActionHandler {
                     AvailableActions::Close => {
                         let mut clients = context.clients.borrow_mut();
                         // attempt to close the active client, if theres none, we do nothing
-                        if let Some(client) = clients.close_active_client(&context)? {
+                        if let Some(client) = clients.close_active_client()? {
                             drop(clients);
                             context.layout_manager.close_client(client, &context)?;
                             context.layout_manager.display_clients(&context.clients)?;

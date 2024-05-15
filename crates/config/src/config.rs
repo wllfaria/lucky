@@ -12,6 +12,12 @@ pub struct Config {
     pub(crate) actions: Vec<Action>,
     /// List of all `commands` defined in the configuration file
     pub(crate) commands: Vec<Command>,
+    /// total workspaces to display, this is constrained to >= 1 and <= 10.
+    pub(crate) workspaces: u8,
+    /// the size of the border to be used by the frames
+    pub(crate) border_width: u16,
+    /// color to be used by borders
+    pub(crate) border_color: u32,
 }
 
 impl Config {
@@ -21,6 +27,18 @@ impl Config {
 
     pub fn commands(&self) -> &[Command] {
         &self.commands
+    }
+
+    pub fn workspaces(&self) -> u8 {
+        self.workspaces
+    }
+
+    pub fn border_width(&self) -> u16 {
+        self.border_width
+    }
+
+    pub fn border_color(&self) -> u32 {
+        self.border_color
     }
 }
 

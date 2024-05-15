@@ -1,4 +1,7 @@
 leader = "Mod1"
+workspaces = 10
+
+border_width = 10
 
 [[actions]]
 modifiers = ["Leader"]
