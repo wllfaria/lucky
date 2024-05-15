@@ -3,6 +3,8 @@
 use anyhow::Result;
 use std::convert::TryFrom;
 
+use crate::config_loader::ConfigError;
+
 /// map of all the keysyms available. you can see a full list here:
 /// https://www.cl.cam.ac.uk/~mgk25/ucs/keysymdef.h
 #[derive(Debug, Clone, PartialEq)]
@@ -291,7 +293,7 @@ impl std::fmt::Display for Keysym {
 }
 
 impl TryFrom<&str> for Keysym {
-    type Error = ();
+    type Error = ConfigError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
@@ -332,7 +334,9 @@ impl TryFrom<&str> for Keysym {
             "y" => Ok(Keysym::XK_y),
             "z" => Ok(Keysym::XK_z),
             "Enter" => Ok(Keysym::XK_Return),
-            _ => Err(()),
+            _ => Err(ConfigError::InvalidKey(format!(
+                "key {value} has invalid format"
+            ))),
         }
     }
 }

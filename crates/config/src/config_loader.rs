@@ -1,11 +1,14 @@
-use crate::config::{Action, AvailableActions, AvailableLeaderKeys, Command, Config};
+use crate::{
+    color_parser::{Color, ColorParserError},
+    config::{Action, AvailableActions, AvailableLeaderKeys, Command, Config},
+};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct UnresolvedConfig {
     workspaces: u8,
     border_width: Option<u16>,
-    border_color: Option<u32>,
+    border_color: Option<String>,
     leader: UnresolvedLeader,
     actions: Vec<UnresolvedActionEntry>,
     commands: Vec<UnresolvedCommandEntry>,
@@ -64,6 +67,14 @@ enum UnresolvedAction {
     Workspace0,
 }
 
+pub enum ConfigError {
+    InvalidKey(String),
+    InvalidWorkspaces(String),
+    InvalidBorderWidth(String),
+    InvalidBorderColor(String),
+    InvalidColor(String),
+}
+
 impl From<AvailableLeaderKeys> for UnresolvedModifier {
     fn from(value: AvailableLeaderKeys) -> Self {
         match value {
@@ -75,7 +86,7 @@ impl From<AvailableLeaderKeys> for UnresolvedModifier {
 }
 
 impl TryFrom<UnresolvedConfig> for Config {
-    type Error = ();
+    type Error = ConfigError;
 
     fn try_from(value: UnresolvedConfig) -> Result<Self, Self::Error> {
         let mut value = value;
@@ -112,12 +123,19 @@ impl TryFrom<UnresolvedConfig> for Config {
         }
 
         if value.workspaces.gt(&10) || value.workspaces.eq(&0) {
-            return Err(());
+            return Err(ConfigError::InvalidWorkspaces(format!(
+                "{} number of workspaces must be greater than 0, and up to 10",
+                value.workspaces
+            )));
         }
+
+        let border_color = Color::try_from(value.border_color.unwrap_or_default())
+            .map_err(|e| ConfigError::InvalidBorderColor(e.to_string()))?
+            .0;
 
         Ok(Self {
             workspaces: value.workspaces,
-            border_color: value.border_color.unwrap_or(0xff0000),
+            border_color,
             border_width: value.border_width.unwrap_or(1),
             actions,
             leader,
@@ -127,7 +145,7 @@ impl TryFrom<UnresolvedConfig> for Config {
 }
 
 impl TryFrom<UnresolvedActionEntry> for Action {
-    type Error = ();
+    type Error = ConfigError;
 
     fn try_from(value: UnresolvedActionEntry) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -142,7 +160,7 @@ impl TryFrom<UnresolvedActionEntry> for Action {
 }
 
 impl TryFrom<UnresolvedCommandEntry> for Command {
-    type Error = ();
+    type Error = ConfigError;
 
     fn try_from(value: UnresolvedCommandEntry) -> Result<Self, Self::Error> {
         let a = Self {

@@ -1,9 +1,10 @@
+mod color_parser;
 mod config;
 mod config_loader;
 pub mod keysyms;
 
 pub use config::{AvailableActions, Config};
-use config_loader::UnresolvedConfig;
+use config_loader::{ConfigError, UnresolvedConfig};
 use std::path::{Path, PathBuf};
 
 static APP_NAME: &str = "lucky";
@@ -33,7 +34,13 @@ where
     let config = toml::from_str::<UnresolvedConfig>(&config_file)?;
     match Config::try_from(config) {
         Ok(config) => Ok(config),
-        Err(_) => anyhow::bail!("failed to parse config file"),
+        Err(e) => match e {
+            ConfigError::InvalidKey(msg) => anyhow::bail!(msg),
+            ConfigError::InvalidWorkspaces(msg) => anyhow::bail!(msg),
+            ConfigError::InvalidBorderWidth(msg) => anyhow::bail!(msg),
+            ConfigError::InvalidBorderColor(msg) => anyhow::bail!(msg),
+            ConfigError::InvalidColor(msg) => anyhow::bail!(msg),
+        },
     }
 }
 
@@ -47,8 +54,14 @@ pub fn load_config() -> Config {
         Ok(var) => Some(PathBuf::from(&var).join(CONFIG_FILE)),
         Err(_) => get_config_dir_path(),
     };
-    config_path
+    match config_path
         .map(load_config_from_file)
-        .unwrap_or(Ok(Default::default()))
-        .unwrap()
+        .unwrap_or(Ok(Config::default()))
+    {
+        Ok(config) => config,
+        Err(e) => {
+            tracing::error!("{e:?}");
+            Config::default()
+        }
+    }
 }

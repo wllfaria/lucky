@@ -2,6 +2,7 @@ leader = "Mod1"
 workspaces = 10
 
 border_width = 23
+border_color = "#252525"
 
 [[actions]]
 modifiers = ["Leader"]
