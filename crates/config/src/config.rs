@@ -18,6 +18,10 @@ pub struct Config {
     pub(crate) border_width: u16,
     /// color to be used by borders
     pub(crate) border_color: u32,
+    /// color to be used by the active client border
+    pub(crate) active_border_color: u32,
+    /// Altomatically focus newly created clients
+    pub(crate) focus_new_clients: bool,
 }
 
 impl Config {
@@ -39,6 +43,14 @@ impl Config {
 
     pub fn border_color(&self) -> u32 {
         self.border_color
+    }
+
+    pub fn active_border_color(&self) -> u32 {
+        self.active_border_color
+    }
+
+    pub fn focus_new_clients(&self) -> bool {
+        self.focus_new_clients
     }
 }
 

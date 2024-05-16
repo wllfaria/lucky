@@ -1,6 +1,6 @@
 use crate::{
-    atoms::Atoms, clients::Clients, decorator::Decorator, keyboard::Keyboard,
-    layout_manager::LayoutManager,
+    atoms::Atoms, decorator::Decorator, keyboard::Keyboard, layout_manager::LayoutManager,
+    screen_manager::ScreenManager,
 };
 use config::Config;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
@@ -18,9 +18,9 @@ pub struct EventContext<'ec, E> {
     /// The keyboard state retrieved from `XKB`, this is used to define which key is pressed
     /// through the Keycode we get from `xcb::x::KeyPressEvent`
     pub keyboard: &'ec Keyboard,
-    /// All the clients currently being handled by the window manager, clients are how we call all
-    /// the windows opened to avoid naming conflicts with `xcb::x::Window`
-    pub clients: Rc<RefCell<Clients>>,
+    /// The entity responsible for handling which screen and clients should handle events and to
+    /// orchestrating their behavior
+    pub screen_manager: Rc<RefCell<ScreenManager>>,
     /// Layout manager handles how to arrange the windows based on the current active layout for
     /// the during runtime
     pub layout_manager: &'ec LayoutManager,
@@ -51,7 +51,7 @@ impl Clone for EventContext<'_, xcb::x::KeyPressEvent> {
             conn: self.conn.clone(),
             config: self.config.clone(),
             keyboard: self.keyboard,
-            clients: self.clients.clone(),
+            screen_manager: self.screen_manager.clone(),
             atoms: self.atoms,
             decorator: self.decorator,
             layout_manager: self.layout_manager,
@@ -68,7 +68,7 @@ impl Clone for EventContext<'_, xcb::x::MapRequestEvent> {
             conn: self.conn.clone(),
             config: self.config.clone(),
             keyboard: self.keyboard,
-            clients: self.clients.clone(),
+            screen_manager: self.screen_manager.clone(),
             atoms: self.atoms,
             decorator: self.decorator,
             layout_manager: self.layout_manager,
@@ -85,7 +85,7 @@ impl Clone for EventContext<'_, xcb::x::DestroyNotifyEvent> {
             conn: self.conn.clone(),
             config: self.config.clone(),
             keyboard: self.keyboard,
-            clients: self.clients.clone(),
+            screen_manager: self.screen_manager.clone(),
             atoms: self.atoms,
             decorator: self.decorator,
             layout_manager: self.layout_manager,
@@ -115,7 +115,7 @@ impl Clone for EventContext<'_, xcb::x::EnterNotifyEvent> {
             conn: self.conn.clone(),
             config: self.config.clone(),
             keyboard: self.keyboard,
-            clients: self.clients.clone(),
+            screen_manager: self.screen_manager.clone(),
             atoms: self.atoms,
             decorator: self.decorator,
             layout_manager: self.layout_manager,
@@ -136,7 +136,7 @@ impl Clone for EventContext<'_, xcb::x::MapNotifyEvent> {
             conn: self.conn.clone(),
             config: self.config.clone(),
             keyboard: self.keyboard,
-            clients: self.clients.clone(),
+            screen_manager: self.screen_manager.clone(),
             atoms: self.atoms,
             decorator: self.decorator,
             layout_manager: self.layout_manager,

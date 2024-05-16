@@ -1,6 +1,8 @@
 use config::Config;
 use std::{rc::Rc, sync::Arc};
 
+use crate::clients::Client;
+
 pub struct Decorator {
     config: Rc<Config>,
     conn: Arc<xcb::Connection>,
@@ -11,7 +13,7 @@ impl Decorator {
         Decorator { conn, config }
     }
 
-    pub fn maybe_decorate_client(&self, client: xcb::x::Window) -> anyhow::Result<xcb::x::Window> {
+    pub fn decorate_client(&self, client: xcb::x::Window) -> anyhow::Result<xcb::x::Window> {
         let frame = self.create_frame()?;
         self.reparent_client(frame, client)?;
         Ok(frame)
@@ -66,5 +68,29 @@ impl Decorator {
             }))?;
 
         Ok(frame)
+    }
+
+    pub fn unfocus_client(&self, client: &Client) -> anyhow::Result<()> {
+        self.conn.send_request(&xcb::x::ChangeWindowAttributes {
+            window: client.frame,
+            value_list: &[xcb::x::Cw::BorderPixel(self.config.border_color())],
+        });
+        self.conn.flush()?;
+        Ok(())
+    }
+
+    pub fn focus_client(&self, client: &Client) -> anyhow::Result<()> {
+        self.conn.send_request(&xcb::x::ChangeWindowAttributes {
+            window: client.frame,
+            value_list: &[xcb::x::Cw::BorderPixel(self.config.active_border_color())],
+        });
+        self.conn.send_request(&xcb::x::SetInputFocus {
+            time: xcb::x::CURRENT_TIME,
+            focus: client.window,
+            revert_to: xcb::x::InputFocus::Parent,
+        });
+        self.conn.flush()?;
+
+        Ok(())
     }
 }

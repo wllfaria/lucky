@@ -1,4 +1,8 @@
-use crate::clients::{Client, Clients};
+use crate::{
+    clients::{Client, Screen},
+    decorator::Decorator,
+    screen_manager::Position,
+};
 use config::Config;
 use std::{
     ops::{Div, Mul, Sub},
@@ -6,61 +10,48 @@ use std::{
     sync::Arc,
 };
 
-struct ClientPos {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
-}
+pub struct TallLayout {}
 
-impl ClientPos {
-    pub fn new(x: i32, y: i32, width: u32, height: u32) -> Self {
-        ClientPos {
-            x,
-            y,
-            width,
-            height,
-        }
-    }
-}
-
-pub struct MasterLayout {}
-
-impl MasterLayout {
+impl TallLayout {
     pub fn display_clients(
         conn: &Arc<xcb::Connection>,
-        clients: &Clients,
         config: &Rc<Config>,
+        screen: &Screen,
+        clients: Vec<&Client>,
+        focused_client: Option<&Client>,
+        decorator: &Decorator,
     ) -> anyhow::Result<()> {
-        let active_workspace = clients.get_active_workspace();
-        let visible_clients: Vec<&Client> = clients
-            .open_clients
-            .iter()
-            .filter(|c| c.workspace.eq(&active_workspace.id) && c.visible)
-            .collect();
-        let visible_clients_len = visible_clients.len();
-        let screen = Self::get_screen(conn);
-        let screen_width = screen.width_in_pixels();
-        let screen_height = screen.height_in_pixels();
+        let visible_clients_len = clients.len();
 
         let master_width = if visible_clients_len.eq(&1) {
-            screen_width
+            screen.position.width
         } else {
-            screen_width.div(2)
+            screen.position.width.div(2)
         };
 
-        for (i, c) in visible_clients.iter().enumerate() {
+        for (i, client) in clients.iter().enumerate() {
+            decorator.unfocus_client(client)?;
             match i {
-                0 => Self::display_master_client(conn, c, screen, master_width, config),
+                0 => Self::display_master_client(conn, client, screen, master_width, config),
                 _ => Self::display_sibling_client(
                     conn,
-                    c,
+                    client,
                     screen,
                     i,
                     visible_clients_len,
                     master_width,
                     config,
                 ),
+            }
+        }
+
+        if let Some(focused_client) = focused_client {
+            let client = clients
+                .iter()
+                .find(|&&client| client.eq(focused_client))
+                .expect("focused client must exist within all the clients");
+            if focused_client.eq(client) {
+                decorator.focus_client(client)?;
             }
         }
 
@@ -71,31 +62,31 @@ impl MasterLayout {
     fn display_master_client(
         conn: &Arc<xcb::Connection>,
         client: &Client,
-        screen: &xcb::x::Screen,
-        master_width: u16,
+        screen: &Screen,
+        master_width: u32,
         config: &Rc<Config>,
     ) {
         Self::configure_window(
             conn,
             client.frame,
-            ClientPos::new(
+            Position::new(
                 0,
                 0,
-                master_width.sub(config.border_width().mul(2)).into(),
+                master_width.sub(config.border_width().mul(2) as u32),
                 screen
-                    .height_in_pixels()
-                    .sub(config.border_width().mul(2))
-                    .into(),
+                    .position
+                    .height
+                    .sub(config.border_width().mul(2) as u32),
             ),
         );
         Self::configure_window(
             conn,
             client.window,
-            ClientPos::new(
+            Position::new(
                 0,
                 0,
-                master_width.sub(config.border_width()).into(),
-                screen.height_in_pixels().sub(config.border_width()).into(),
+                master_width.sub(config.border_width() as u32),
+                screen.position.height.sub(config.border_width() as u32),
             ),
         );
 
@@ -110,32 +101,28 @@ impl MasterLayout {
     fn display_sibling_client(
         conn: &Arc<xcb::Connection>,
         client: &Client,
-        screen: &xcb::x::Screen,
+        screen: &Screen,
         index: usize,
         total: usize,
-        master_width: u16,
+        master_width: u32,
         config: &Rc<Config>,
     ) {
-        let width = screen.width_in_pixels().sub(master_width);
+        let width = screen.position.width.sub(master_width);
         let total_siblings = total.sub(1);
-        let height = screen.height_in_pixels().div(total_siblings as u16);
+        let height = screen.position.height.div(total_siblings as u32);
         let sibling_index = index.sub(1);
 
         Self::configure_window(
             conn,
             client.frame,
-            ClientPos::new(
-                master_width.into(),
-                height.mul(sibling_index as u16).into(),
-                width.sub(config.border_width().mul(2)).into(),
-                height.sub(config.border_width().mul(2)).into(),
+            Position::new(
+                master_width as i32,
+                height.mul(sibling_index as u32) as i32,
+                width.sub(config.border_width().mul(2) as u32),
+                height.sub(config.border_width().mul(2) as u32),
             ),
         );
-        Self::configure_window(
-            conn,
-            client.window,
-            ClientPos::new(0, 0, width.into(), height.into()),
-        );
+        Self::configure_window(conn, client.window, Position::new(0, 0, width, height));
         conn.send_request(&xcb::x::MapWindow {
             window: client.window,
         });
@@ -144,11 +131,7 @@ impl MasterLayout {
         });
     }
 
-    fn configure_window(
-        conn: &Arc<xcb::Connection>,
-        window: xcb::x::Window,
-        client_pos: ClientPos,
-    ) {
+    fn configure_window(conn: &Arc<xcb::Connection>, window: xcb::x::Window, client_pos: Position) {
         conn.send_request(&xcb::x::ConfigureWindow {
             window,
             value_list: &[
@@ -158,12 +141,5 @@ impl MasterLayout {
                 xcb::x::ConfigWindow::Height(client_pos.height),
             ],
         });
-    }
-
-    fn get_screen(conn: &Arc<xcb::Connection>) -> &xcb::x::Screen {
-        conn.get_setup()
-            .roots()
-            .next()
-            .expect("should have at least one screen to manage")
     }
 }

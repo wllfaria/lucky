@@ -22,12 +22,14 @@ impl Handler for ActionHandler {
             {
                 match action.action() {
                     AvailableActions::Close => {
-                        let mut clients = context.clients.borrow_mut();
                         // attempt to close the active client, if theres none, we do nothing
-                        if let Some(client) = clients.close_active_client()? {
-                            drop(clients);
+                        if let Some(client) =
+                            context.screen_manager.borrow_mut().close_focused_client()?
+                        {
                             context.layout_manager.close_client(client, &context)?;
-                            context.layout_manager.display_clients(&context.clients)?;
+                            context
+                                .layout_manager
+                                .display_screens(&context.screen_manager, context.decorator)?;
                         }
                     }
                     AvailableActions::FocusLeft => todo!(),

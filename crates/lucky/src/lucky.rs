@@ -1,6 +1,11 @@
 use crate::{
-    atoms::Atoms, clients::Clients, decorator::Decorator, event::EventContext, handlers::Handlers,
-    keyboard::Keyboard, layout_manager::LayoutManager,
+    atoms::Atoms,
+    decorator::Decorator,
+    event::EventContext,
+    handlers::Handlers,
+    keyboard::Keyboard,
+    layout_manager::LayoutManager,
+    screen_manager::{Position, ScreenManager},
 };
 use config::Config;
 use std::{
@@ -8,14 +13,17 @@ use std::{
     rc::Rc,
     sync::{mpsc::channel, Arc},
 };
-use xcb::x::{self, ChangeProperty, ChangeWindowAttributes};
+use xcb::{
+    randr,
+    x::{self, ChangeProperty, ChangeWindowAttributes},
+};
 
 pub struct Lucky {
     conn: Arc<xcb::Connection>,
     keyboard: Keyboard,
     config: Rc<Config>,
     handlers: Handlers,
-    clients: Rc<RefCell<Clients>>,
+    screen_manager: Rc<RefCell<ScreenManager>>,
     atoms: Atoms,
     layout_manager: LayoutManager,
     decorator: Decorator,
@@ -27,14 +35,18 @@ impl Lucky {
         let conn = Arc::new(conn);
         let config = Rc::new(config);
         let root = Self::setup(&conn);
+        let screen_positions = Self::get_monitors(&conn, root);
 
         Lucky {
-            clients: Rc::new(RefCell::new(Clients::new(&config))),
             keyboard: Keyboard::new(&conn, root, config.clone()),
             layout_manager: LayoutManager::new(conn.clone(), config.clone()),
             decorator: Decorator::new(conn.clone(), config.clone()),
             atoms: Atoms::new(&conn),
             handlers: Handlers::default(),
+            screen_manager: Rc::new(RefCell::new(ScreenManager::new(
+                screen_positions,
+                config.clone(),
+            ))),
 
             conn,
             config,
@@ -74,9 +86,7 @@ impl Lucky {
                             std::process::abort();
                         }
                     }
-                    xcb::Event::X(xcb::x::Event::ConfigureRequest(e)) => {
-                        tracing::debug!("{e:#?}");
-                    }
+                    xcb::Event::X(xcb::x::Event::ConfigureRequest(_)) => {}
                     xcb::Event::X(xcb::x::Event::PropertyNotify(_)) => {}
                     xcb::Event::X(xcb::x::Event::UnmapNotify(_)) => {}
                     _ => (),
@@ -93,7 +103,7 @@ impl Lucky {
                         conn: self.conn.clone(),
                         keyboard: &self.keyboard,
                         config: self.config.clone(),
-                        clients: self.clients.clone(),
+                        screen_manager: self.screen_manager.clone(),
                         atoms: &self.atoms,
                         decorator: &self.decorator,
                         layout_manager: &self.layout_manager,
@@ -103,7 +113,7 @@ impl Lucky {
                         conn: self.conn.clone(),
                         keyboard: &self.keyboard,
                         config: self.config.clone(),
-                        clients: self.clients.clone(),
+                        screen_manager: self.screen_manager.clone(),
                         atoms: &self.atoms,
                         decorator: &self.decorator,
                         layout_manager: &self.layout_manager,
@@ -113,7 +123,7 @@ impl Lucky {
                         conn: self.conn.clone(),
                         keyboard: &self.keyboard,
                         config: self.config.clone(),
-                        clients: self.clients.clone(),
+                        screen_manager: self.screen_manager.clone(),
                         atoms: &self.atoms,
                         decorator: &self.decorator,
                         layout_manager: &self.layout_manager,
@@ -123,7 +133,7 @@ impl Lucky {
                         conn: self.conn.clone(),
                         keyboard: &self.keyboard,
                         config: self.config.clone(),
-                        clients: self.clients.clone(),
+                        screen_manager: self.screen_manager.clone(),
                         atoms: &self.atoms,
                         decorator: &self.decorator,
                         layout_manager: &self.layout_manager,
@@ -188,6 +198,31 @@ impl Lucky {
         .expect("failed to set window manager name");
 
         root
+    }
+
+    fn get_monitors(conn: &Arc<xcb::Connection>, root: xcb::x::Window) -> Vec<Position> {
+        let total_screens = conn
+            .wait_for_reply(conn.send_request(&randr::GetMonitors {
+                window: root,
+                get_active: true,
+            }))
+            .expect("failed to get monitors");
+
+        total_screens
+            .monitors()
+            .map(Into::into)
+            .collect::<Vec<Position>>()
+    }
+}
+
+impl From<&xcb::randr::MonitorInfo> for Position {
+    fn from(value: &xcb::randr::MonitorInfo) -> Self {
+        Position {
+            x: value.x().into(),
+            y: value.y().into(),
+            width: value.width().into(),
+            height: value.height().into(),
+        }
     }
 }
 

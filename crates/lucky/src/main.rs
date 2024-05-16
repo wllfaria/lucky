@@ -6,6 +6,7 @@ mod handlers;
 mod keyboard;
 mod layout_manager;
 mod lucky;
+mod screen_manager;
 
 use lucky::Lucky;
 use tracing::Level;

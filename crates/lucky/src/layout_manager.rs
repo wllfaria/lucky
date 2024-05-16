@@ -1,9 +1,11 @@
 mod master_layout;
 
 use crate::{
-    clients::{Client, Clients, WorkspaceLayout},
+    clients::{Client, WorkspaceLayout},
+    decorator::Decorator,
     event::EventContext,
-    layout_manager::master_layout::MasterLayout,
+    layout_manager::master_layout::TallLayout,
+    screen_manager::ScreenManager,
 };
 use config::Config;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
@@ -32,13 +34,32 @@ impl LayoutManager {
         Ok(())
     }
 
-    pub fn display_clients(&self, clients: &Rc<RefCell<Clients>>) -> anyhow::Result<()> {
-        let clients = clients.borrow();
-        let active_workspace = clients.get_active_workspace();
+    pub fn display_screens(
+        &self,
+        screen_manager: &Rc<RefCell<ScreenManager>>,
+        decorator: &Decorator,
+    ) -> anyhow::Result<()> {
+        for screen in screen_manager.borrow().screens() {
+            let workspace = screen.get_active_workspace();
+            let screen_manager = screen_manager.borrow();
 
-        match active_workspace.layout {
-            WorkspaceLayout::Master => {
-                MasterLayout::display_clients(&self.conn, &clients, &self.config)?
+            let visible_clients = screen_manager
+                .get_visible_screen_clients(screen)
+                .into_iter()
+                .filter(|client| client.visible)
+                .collect::<Vec<_>>();
+
+            let focused_client = screen_manager.get_focused_client();
+
+            match workspace.layout {
+                WorkspaceLayout::Tall => TallLayout::display_clients(
+                    &self.conn,
+                    &self.config,
+                    screen,
+                    visible_clients,
+                    focused_client,
+                    decorator,
+                )?,
             }
         }
 

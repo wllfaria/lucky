@@ -9,21 +9,22 @@ impl Handler for MapWindowHandler {
         &mut self,
         context: EventContext<xcb::x::MapRequestEvent>,
     ) -> anyhow::Result<()> {
-        let frame = context
-            .decorator
-            .maybe_decorate_client(context.event.window())?;
+        let window = context.event.window();
+        let frame = context.decorator.decorate_client(window)?;
 
-        // we enable events for both client and the window
+        tracing::debug!("creating window {window:?} with frame {frame:?}");
+
+        context.layout_manager.enable_client_events(window)?;
+        context.layout_manager.enable_client_events(frame)?;
+        context
+            .screen_manager
+            .borrow_mut()
+            .create_client(frame, window);
+
         context
             .layout_manager
-            .enable_client_events(context.event.window())?;
-        context.layout_manager.enable_client_events(frame)?;
+            .display_screens(&context.screen_manager, context.decorator)?;
 
-        context
-            .clients
-            .borrow_mut()
-            .create(frame, context.event.window())?;
-        context.layout_manager.display_clients(&context.clients)?;
         Ok(())
     }
 }

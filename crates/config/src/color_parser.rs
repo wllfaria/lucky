@@ -1,7 +1,9 @@
 use std::ops::Div;
 
+#[derive(Debug)]
 pub struct Color(pub u32);
 
+#[derive(Debug)]
 pub enum ColorParserError {
     InvalidFormat(String),
 }
@@ -91,21 +93,39 @@ impl TryFrom<String> for Color {
     }
 }
 
+/// Neat trick to convert color components to a single integer.
+///
+/// we cast the u8s to u32 to accomodate the final 24bits color int
+/// and shift each color to their bit position in the number.
+///
+/// r moves 16 bits
+/// g moves 8 bits
+/// b statys in place
+///
+/// using bitwise OR just combines the 3 ints as they are guaranteed
+/// to not overlap
+///
+/// Eg:
+/// 0xFF0000 | 0x00FF00 | 0x0000FF
+/// becomes:
+/// 0xFFFFFF
 fn rgb_to_u32(r: u8, g: u8, b: u8) -> u32 {
     ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
 }
 
+/// magic formula to convert from HSL to RGB
+/// reference: https://gist.github.com/mjackson/5311256
 fn hsl_to_rgb(h: f64, s: f64, l: f64) -> u32 {
     let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
     let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
     let m = l - c / 2.0;
     let (r, g, b) = match h {
-        0.0..=60.0 => (c, x, 0.0),
-        60.0..=120.0 => (x, c, 0.0),
-        120.0..=180.0 => (0.0, c, x),
-        180.0..=240.0 => (0.0, x, c),
-        240.0..=300.0 => (x, 0.0, c),
-        300.0..=360.0 => (c, 0.0, x),
+        _ if h.ge(&0.0) && h.le(&60.0) => (c, x, 0.0),
+        _ if h.ge(&60.0) && h.le(&120.0) => (x, c, 0.0),
+        _ if h.ge(&120.0) && h.le(&180.0) => (0.0, c, x),
+        _ if h.ge(&180.0) && h.le(&240.0) => (0.0, x, c),
+        _ if h.ge(&240.0) && h.le(&300.0) => (x, 0.0, c),
+        _ if h.ge(&300.0) && h.le(&360.0) => (c, 0.0, x),
         _ => (0.0, 0.0, 0.0),
     };
     rgb_to_u32(

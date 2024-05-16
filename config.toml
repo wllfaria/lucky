@@ -3,7 +3,8 @@ workspaces = 10
 
 border_width = 4
 border_color = "#252525"
-gap = 4
+active_border_color = "#ff0000"
+focus_new_clients = true
 
 [[actions]]
 modifiers = ["Leader"]
@@ -18,4 +19,4 @@ command = "alacritty"
 [[commands]]
 modifiers = ["Leader"]
 key = "d"
-command = "thunar"
+command = "wezterm"

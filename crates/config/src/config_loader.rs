@@ -1,5 +1,5 @@
 use crate::{
-    color_parser::{Color, ColorParserError},
+    color_parser::Color,
     config::{Action, AvailableActions, AvailableLeaderKeys, Command, Config},
 };
 use serde::Deserialize;
@@ -9,6 +9,8 @@ pub struct UnresolvedConfig {
     workspaces: u8,
     border_width: Option<u16>,
     border_color: Option<String>,
+    active_border_color: Option<String>,
+    focus_new_clients: Option<bool>,
     leader: UnresolvedLeader,
     actions: Vec<UnresolvedActionEntry>,
     commands: Vec<UnresolvedCommandEntry>,
@@ -133,10 +135,16 @@ impl TryFrom<UnresolvedConfig> for Config {
             .map_err(|e| ConfigError::BorderColor(e.to_string()))?
             .0;
 
-        Ok(Self {
+        let active_border_color = Color::try_from(value.active_border_color.unwrap_or_default())
+            .map_err(|e| ConfigError::BorderColor(e.to_string()))?
+            .0;
+
+        Ok(Config {
             workspaces: value.workspaces,
-            border_color,
             border_width: value.border_width.unwrap_or(1),
+            border_color,
+            active_border_color,
+            focus_new_clients: value.focus_new_clients.unwrap_or(true),
             actions,
             leader,
             commands,
@@ -148,7 +156,7 @@ impl TryFrom<UnresolvedActionEntry> for Action {
     type Error = ConfigError;
 
     fn try_from(value: UnresolvedActionEntry) -> Result<Self, Self::Error> {
-        Ok(Self {
+        Ok(Action {
             action: value.action.into(),
             key: value.key.as_str().try_into()?,
             modifier: value
@@ -163,15 +171,14 @@ impl TryFrom<UnresolvedCommandEntry> for Command {
     type Error = ConfigError;
 
     fn try_from(value: UnresolvedCommandEntry) -> Result<Self, Self::Error> {
-        let a = Self {
+        Ok(Command {
             command: value.command,
             key: value.key.as_str().try_into()?,
             modifier: value
                 .modifiers
                 .into_iter()
                 .fold(0, |acc, modifier| acc + u32::from(modifier)),
-        };
-        Ok(a)
+        })
     }
 }
 
