@@ -11,6 +11,11 @@ use config::Config;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 use xcb::Xid;
 
+pub enum ActionHandledStatus {
+    FullyHandled,
+    Unhandled,
+}
+
 pub struct LayoutManager {
     config: Rc<RefCell<Config>>,
     conn: Arc<xcb::Connection>,
@@ -40,7 +45,7 @@ impl LayoutManager {
         decorator: &Decorator,
     ) -> anyhow::Result<()> {
         for screen in screen_manager.borrow().screens() {
-            let workspace = screen.get_active_workspace();
+            let workspace = screen.active_workspace();
             let screen_manager = screen_manager.borrow();
 
             let visible_clients = screen_manager
@@ -51,7 +56,7 @@ impl LayoutManager {
 
             let focused_client = screen_manager.get_focused_client();
 
-            match workspace.layout {
+            match workspace.layout() {
                 WorkspaceLayout::Tall => TallLayout::display_clients(
                     &self.conn,
                     &self.config,
@@ -62,6 +67,81 @@ impl LayoutManager {
                 )?,
             }
         }
+
+        Ok(())
+    }
+
+    pub fn focus_left(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
+        let mut screen_manager = context.screen_manager.borrow_mut();
+        let screen = screen_manager.screen(screen_manager.active_screen);
+        let workspace = screen.active_workspace();
+
+        match workspace.layout() {
+            WorkspaceLayout::Tall => match TallLayout::focus_left(&mut screen_manager) {
+                ActionHandledStatus::Unhandled => {}
+                ActionHandledStatus::FullyHandled => {}
+            },
+        }
+
+        drop(screen_manager);
+        self.display_screens(&context.screen_manager, context.decorator)?;
+
+        Ok(())
+    }
+
+    pub fn focus_down(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
+        let mut screen_manager = context.screen_manager.borrow_mut();
+        let screen = screen_manager.screen(screen_manager.active_screen);
+        let workspace = screen.active_workspace();
+
+        match workspace.layout() {
+            // on tall workspace, selecting right and bottom has the same effect.
+            WorkspaceLayout::Tall => match TallLayout::focus_right_or_bottom(&mut screen_manager) {
+                ActionHandledStatus::Unhandled => {}
+                ActionHandledStatus::FullyHandled => {}
+            },
+        }
+
+        drop(screen_manager);
+        self.display_screens(&context.screen_manager, context.decorator)?;
+
+        Ok(())
+    }
+
+    pub fn focus_up(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
+        let mut screen_manager = context.screen_manager.borrow_mut();
+        let screen = screen_manager.screen(screen_manager.active_screen);
+        let workspace = screen.active_workspace();
+
+        match workspace.layout() {
+            // on tall workspace, selecting right and bottom has the same effect.
+            WorkspaceLayout::Tall => match TallLayout::focus_up(&mut screen_manager) {
+                ActionHandledStatus::Unhandled => {}
+                ActionHandledStatus::FullyHandled => {}
+            },
+        }
+
+        drop(screen_manager);
+        self.display_screens(&context.screen_manager, context.decorator)?;
+
+        Ok(())
+    }
+
+    pub fn focus_right(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
+        let mut screen_manager = context.screen_manager.borrow_mut();
+        let screen = screen_manager.screen(screen_manager.active_screen);
+        let workspace = screen.active_workspace();
+
+        match workspace.layout() {
+            // on tall workspace, selecting right and bottom has the same effect.
+            WorkspaceLayout::Tall => match TallLayout::focus_right_or_bottom(&mut screen_manager) {
+                ActionHandledStatus::Unhandled => {}
+                ActionHandledStatus::FullyHandled => {}
+            },
+        }
+
+        drop(screen_manager);
+        self.display_screens(&context.screen_manager, context.decorator)?;
 
         Ok(())
     }

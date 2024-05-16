@@ -24,7 +24,7 @@ impl Position {
 pub struct ScreenManager {
     screens: Vec<Screen>,
     clients: HashMap<xcb::x::Window, Client>,
-    active_screen: usize,
+    pub active_screen: usize,
     config: Rc<RefCell<Config>>,
 }
 
@@ -45,6 +45,22 @@ impl ScreenManager {
         &self.screens
     }
 
+    pub fn screen(&self, index: usize) -> &Screen {
+        assert!(
+            self.screens.len().gt(&index),
+            "attempted to access an out of bounds screen"
+        );
+        &self.screens[index]
+    }
+
+    pub fn screen_mut(&mut self, index: usize) -> &mut Screen {
+        assert!(
+            self.screens.len().gt(&index),
+            "attempted to access an out of bounds screen"
+        );
+        &mut self.screens[index]
+    }
+
     /// Creates a new client on the active screen and active workspace on given screen
     ///
     /// When `focus_new_clients` is true on configuration, we also set the focus to the newly
@@ -59,21 +75,21 @@ impl ScreenManager {
                 frame,
                 window,
                 visible: true,
-                workspace: self.screens[self.active_screen].active_workspace,
+                workspace: self.screens[self.active_screen].active_workspace().id(),
             },
         );
 
         let screen = &mut self.screens[self.active_screen];
-        let workspace = &mut screen.workspaces[screen.active_workspace as usize];
-        workspace.clients.push(frame);
+        let workspace = screen.active_workspace_mut();
+        workspace.new_client(frame);
 
-        if self.config.borrow().focus_new_clients() || workspace.clients.len().eq(&1) {
-            workspace.focused_client = Some(frame);
+        if self.config.borrow().focus_new_clients() || workspace.clients().len().eq(&1) {
+            workspace.set_focused_client(Some(frame));
         }
     }
 
     pub fn get_focused_client(&self) -> Option<&Client> {
-        if let Some(index) = self.screens[self.active_screen].get_active_client_index() {
+        if let Some(index) = self.screens[self.active_screen].focused_client() {
             return self.clients.get(&index);
         }
         None
@@ -81,18 +97,19 @@ impl ScreenManager {
 
     pub fn close_focused_client(&mut self) -> anyhow::Result<Option<Client>> {
         let active_screen = &mut self.screens[self.active_screen];
-        if let Some(frame) = active_screen.get_active_client_index() {
-            let workspace = &mut active_screen.workspaces[active_screen.active_workspace as usize];
-            workspace.clients.retain(|i| !i.eq(&frame));
-            workspace.focused_client = workspace.clients.first().copied();
+        if let Some(frame) = active_screen.focused_client() {
+            let workspace = active_screen.active_workspace_mut();
+            workspace.remove_client(frame);
+            workspace.set_focused_client(workspace.clients().first().copied());
             return Ok(self.clients.remove(&frame));
         }
         Ok(None)
     }
 
     pub fn get_visible_screen_clients(&self, screen: &Screen) -> Vec<&Client> {
-        screen.workspaces[screen.active_workspace as usize]
-            .clients
+        screen
+            .active_workspace()
+            .clients()
             .iter()
             .map(|frame| {
                 self.clients

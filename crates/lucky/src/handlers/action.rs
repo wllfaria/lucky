@@ -23,10 +23,10 @@ impl Handler for ActionHandler {
             {
                 match action.action() {
                     AvailableActions::Close => self.handle_close(&context)?,
-                    AvailableActions::FocusLeft => todo!(),
-                    AvailableActions::FocusDown => todo!(),
-                    AvailableActions::FocusUp => todo!(),
-                    AvailableActions::FocusRight => todo!(),
+                    AvailableActions::FocusLeft => self.handle_focus_left(&context)?,
+                    AvailableActions::FocusDown => self.handle_focus_down(&context)?,
+                    AvailableActions::FocusUp => self.handle_focus_up(&context)?,
+                    AvailableActions::FocusRight => self.handle_focus_right(&context)?,
                     AvailableActions::MoveLeft => todo!(),
                     AvailableActions::MoveDown => todo!(),
                     AvailableActions::MoveUp => todo!(),
@@ -61,6 +61,35 @@ impl ActionHandler {
                 .display_screens(&context.screen_manager, context.decorator)?;
         }
 
+        Ok(())
+    }
+
+    fn handle_focus_left(
+        &self,
+        context: &EventContext<xcb::x::KeyPressEvent>,
+    ) -> anyhow::Result<()> {
+        context.layout_manager.focus_left(context)?;
+        Ok(())
+    }
+
+    fn handle_focus_down(
+        &self,
+        context: &EventContext<xcb::x::KeyPressEvent>,
+    ) -> anyhow::Result<()> {
+        context.layout_manager.focus_down(context)?;
+        Ok(())
+    }
+
+    fn handle_focus_up(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
+        context.layout_manager.focus_up(context)?;
+        Ok(())
+    }
+
+    fn handle_focus_right(
+        &self,
+        context: &EventContext<xcb::x::KeyPressEvent>,
+    ) -> anyhow::Result<()> {
+        context.layout_manager.focus_right(context)?;
         Ok(())
     }
 }

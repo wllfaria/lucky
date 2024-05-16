@@ -19,10 +19,10 @@ pub enum WorkspaceLayout {
 
 #[derive(Debug)]
 pub struct Workspace {
-    pub id: u8,
-    pub layout: WorkspaceLayout,
-    pub clients: Vec<xcb::x::Window>,
-    pub focused_client: Option<xcb::x::Window>,
+    id: u8,
+    layout: WorkspaceLayout,
+    clients: Vec<xcb::x::Window>,
+    focused_client: Option<xcb::x::Window>,
 }
 
 impl Workspace {
@@ -34,13 +34,37 @@ impl Workspace {
             focused_client: None,
         }
     }
+
+    pub fn layout(&self) -> &WorkspaceLayout {
+        &self.layout
+    }
+
+    pub fn id(&self) -> u8 {
+        self.id
+    }
+
+    pub fn new_client(&mut self, client: xcb::x::Window) {
+        self.clients.push(client)
+    }
+
+    pub fn clients(&self) -> &[xcb::x::Window] {
+        &self.clients
+    }
+
+    pub fn set_focused_client(&mut self, client: Option<xcb::x::Window>) {
+        self.focused_client = client
+    }
+
+    pub fn remove_client(&mut self, client: xcb::x::Window) {
+        self.clients.retain(|i| !i.eq(&client));
+    }
 }
 
 #[derive(Debug)]
 pub struct Screen {
-    pub position: Position,
-    pub active_workspace: u8,
-    pub workspaces: Vec<Workspace>,
+    position: Position,
+    active_workspace: u8,
+    workspaces: Vec<Workspace>,
 }
 
 impl Screen {
@@ -54,11 +78,19 @@ impl Screen {
         }
     }
 
-    pub fn get_active_client_index(&self) -> Option<xcb::x::Window> {
+    pub fn focused_client(&self) -> Option<xcb::x::Window> {
         self.workspaces[self.active_workspace as usize].focused_client
     }
 
-    pub fn get_active_workspace(&self) -> &Workspace {
+    pub fn active_workspace(&self) -> &Workspace {
         &self.workspaces[self.active_workspace as usize]
+    }
+
+    pub fn active_workspace_mut(&mut self) -> &mut Workspace {
+        &mut self.workspaces[self.active_workspace as usize]
+    }
+
+    pub fn position(&self) -> &Position {
+        &self.position
     }
 }
