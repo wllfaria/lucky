@@ -1,15 +1,15 @@
 use config::Config;
-use std::{rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 
-use crate::clients::Client;
+use crate::screen::Client;
 
 pub struct Decorator {
-    config: Rc<Config>,
+    config: Rc<RefCell<Config>>,
     conn: Arc<xcb::Connection>,
 }
 
 impl Decorator {
-    pub fn new(conn: Arc<xcb::Connection>, config: Rc<Config>) -> Self {
+    pub fn new(conn: Arc<xcb::Connection>, config: Rc<RefCell<Config>>) -> Self {
         Decorator { conn, config }
     }
 
@@ -50,12 +50,12 @@ impl Decorator {
                 y: 0,
                 width: 1,
                 height: 1,
-                border_width: self.config.border_width(),
+                border_width: self.config.borrow().border_width(),
                 class: xcb::x::WindowClass::InputOutput,
                 visual: root.root_visual(),
                 value_list: &[
                     xcb::x::Cw::BackPixel(root.black_pixel()),
-                    xcb::x::Cw::BorderPixel(self.config.border_color()),
+                    xcb::x::Cw::BorderPixel(self.config.borrow().border_color()),
                     xcb::x::Cw::EventMask(
                         xcb::x::EventMask::EXPOSURE
                             | xcb::x::EventMask::BUTTON_PRESS
@@ -73,7 +73,7 @@ impl Decorator {
     pub fn unfocus_client(&self, client: &Client) -> anyhow::Result<()> {
         self.conn.send_request(&xcb::x::ChangeWindowAttributes {
             window: client.frame,
-            value_list: &[xcb::x::Cw::BorderPixel(self.config.border_color())],
+            value_list: &[xcb::x::Cw::BorderPixel(self.config.borrow().border_color())],
         });
         self.conn.flush()?;
         Ok(())
@@ -82,7 +82,9 @@ impl Decorator {
     pub fn focus_client(&self, client: &Client) -> anyhow::Result<()> {
         self.conn.send_request(&xcb::x::ChangeWindowAttributes {
             window: client.frame,
-            value_list: &[xcb::x::Cw::BorderPixel(self.config.active_border_color())],
+            value_list: &[xcb::x::Cw::BorderPixel(
+                self.config.borrow().active_border_color(),
+            )],
         });
         self.conn.send_request(&xcb::x::SetInputFocus {
             time: xcb::x::CURRENT_TIME,

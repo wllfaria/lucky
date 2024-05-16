@@ -1,5 +1,5 @@
 use config::Config;
-use std::{collections::HashMap, rc::Rc, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 use xcb::x::{GrabKey, GrabMode, ModMask};
 use xkbcommon::xkb;
 
@@ -8,7 +8,11 @@ pub struct Keyboard {
 }
 
 impl Keyboard {
-    pub fn new(conn: &Arc<xcb::Connection>, root: xcb::x::Window, config: Rc<Config>) -> Self {
+    pub fn new(
+        conn: &Arc<xcb::Connection>,
+        config: Rc<RefCell<Config>>,
+        root: xcb::x::Window,
+    ) -> Self {
         conn.wait_for_reply(conn.send_request(&xcb::xkb::UseExtension {
             wanted_major: xkb::x11::MIN_MAJOR_XKB_VERSION,
             wanted_minor: xkb::x11::MIN_MINOR_XKB_VERSION,
@@ -56,7 +60,7 @@ impl Keyboard {
             }
         });
 
-        config.actions().iter().for_each(|action| {
+        config.borrow().actions().iter().for_each(|action| {
             let keycode = *keycode_map
                 .get(action.key().canonical_name())
                 .expect("should only have valid keys at this point")
@@ -65,7 +69,7 @@ impl Keyboard {
             grab_key(conn.clone(), action.modifiers(), keycode, root);
         });
 
-        config.commands().iter().for_each(|command| {
+        config.borrow().commands().iter().for_each(|command| {
             let keycode = *keycode_map
                 .get(command.key().canonical_name())
                 .expect("should only have valid keys at this point")

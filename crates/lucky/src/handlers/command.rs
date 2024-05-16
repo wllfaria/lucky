@@ -14,6 +14,7 @@ impl Handler for CommandHandler {
         if let Ok(keysym) = Keysym::try_from(keysym) {
             if let Some(command) = context
                 .config
+                .borrow()
                 .commands()
                 .iter()
                 .find(|command| command.key().eq(&keysym))

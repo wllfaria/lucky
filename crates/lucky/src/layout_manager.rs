@@ -1,10 +1,10 @@
 mod master_layout;
 
 use crate::{
-    clients::{Client, WorkspaceLayout},
     decorator::Decorator,
     event::EventContext,
     layout_manager::master_layout::TallLayout,
+    screen::{Client, WorkspaceLayout},
     screen_manager::ScreenManager,
 };
 use config::Config;
@@ -12,12 +12,12 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 use xcb::Xid;
 
 pub struct LayoutManager {
-    config: Rc<Config>,
+    config: Rc<RefCell<Config>>,
     conn: Arc<xcb::Connection>,
 }
 
 impl LayoutManager {
-    pub fn new(conn: Arc<xcb::Connection>, config: Rc<Config>) -> Self {
+    pub fn new(conn: Arc<xcb::Connection>, config: Rc<RefCell<Config>>) -> Self {
         LayoutManager { config, conn }
     }
 

@@ -16,21 +16,13 @@ impl Handler for ActionHandler {
         if let Ok(keysym) = Keysym::try_from(keysym) {
             if let Some(action) = context
                 .config
+                .borrow()
                 .actions()
                 .iter()
                 .find(|action| action.key().eq(&keysym))
             {
                 match action.action() {
-                    AvailableActions::Close => {
-                        let mut screen_manager = context.screen_manager.borrow_mut();
-                        if let Some(client) = screen_manager.close_focused_client()? {
-                            drop(screen_manager);
-                            context.layout_manager.close_client(client, &context)?;
-                            context
-                                .layout_manager
-                                .display_screens(&context.screen_manager, context.decorator)?;
-                        }
-                    }
+                    AvailableActions::Close => self.handle_close(&context)?,
                     AvailableActions::FocusLeft => todo!(),
                     AvailableActions::FocusDown => todo!(),
                     AvailableActions::FocusUp => todo!(),
@@ -39,7 +31,7 @@ impl Handler for ActionHandler {
                     AvailableActions::MoveDown => todo!(),
                     AvailableActions::MoveUp => todo!(),
                     AvailableActions::MoveRight => todo!(),
-                    AvailableActions::Reload => todo!(),
+                    AvailableActions::Reload => context.action_tx.send(action.action())?,
                     AvailableActions::Workspace1 => todo!(),
                     AvailableActions::Workspace2 => todo!(),
                     AvailableActions::Workspace3 => todo!(),
@@ -52,6 +44,21 @@ impl Handler for ActionHandler {
                     AvailableActions::Workspace0 => todo!(),
                 }
             }
+        }
+
+        Ok(())
+    }
+}
+
+impl ActionHandler {
+    fn handle_close(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
+        let mut screen_manager = context.screen_manager.borrow_mut();
+        if let Some(client) = screen_manager.close_focused_client()? {
+            drop(screen_manager);
+            context.layout_manager.close_client(client, context)?;
+            context
+                .layout_manager
+                .display_screens(&context.screen_manager, context.decorator)?;
         }
 
         Ok(())

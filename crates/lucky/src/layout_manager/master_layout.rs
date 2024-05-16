@@ -1,10 +1,11 @@
 use crate::{
-    clients::{Client, Screen},
     decorator::Decorator,
+    screen::{Client, Screen},
     screen_manager::Position,
 };
 use config::Config;
 use std::{
+    cell::RefCell,
     ops::{Div, Mul, Sub},
     rc::Rc,
     sync::Arc,
@@ -15,7 +16,7 @@ pub struct TallLayout {}
 impl TallLayout {
     pub fn display_clients(
         conn: &Arc<xcb::Connection>,
-        config: &Rc<Config>,
+        config: &Rc<RefCell<Config>>,
         screen: &Screen,
         clients: Vec<&Client>,
         focused_client: Option<&Client>,
@@ -64,7 +65,7 @@ impl TallLayout {
         client: &Client,
         screen: &Screen,
         master_width: u32,
-        config: &Rc<Config>,
+        config: &Rc<RefCell<Config>>,
     ) {
         Self::configure_window(
             conn,
@@ -72,11 +73,11 @@ impl TallLayout {
             Position::new(
                 0,
                 0,
-                master_width.sub(config.border_width().mul(2) as u32),
+                master_width.sub(config.borrow().border_width().mul(2) as u32),
                 screen
                     .position
                     .height
-                    .sub(config.border_width().mul(2) as u32),
+                    .sub(config.borrow().border_width().mul(2) as u32),
             ),
         );
         Self::configure_window(
@@ -85,8 +86,11 @@ impl TallLayout {
             Position::new(
                 0,
                 0,
-                master_width.sub(config.border_width() as u32),
-                screen.position.height.sub(config.border_width() as u32),
+                master_width.sub(config.borrow().border_width() as u32),
+                screen
+                    .position
+                    .height
+                    .sub(config.borrow().border_width() as u32),
             ),
         );
 
@@ -105,7 +109,7 @@ impl TallLayout {
         index: usize,
         total: usize,
         master_width: u32,
-        config: &Rc<Config>,
+        config: &Rc<RefCell<Config>>,
     ) {
         let width = screen.position.width.sub(master_width);
         let total_siblings = total.sub(1);
@@ -118,8 +122,8 @@ impl TallLayout {
             Position::new(
                 master_width as i32,
                 height.mul(sibling_index as u32) as i32,
-                width.sub(config.border_width().mul(2) as u32),
-                height.sub(config.border_width().mul(2) as u32),
+                width.sub(config.borrow().border_width().mul(2) as u32),
+                height.sub(config.borrow().border_width().mul(2) as u32),
             ),
         );
         Self::configure_window(conn, client.window, Position::new(0, 0, width, height));

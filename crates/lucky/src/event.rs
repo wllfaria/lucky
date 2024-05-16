@@ -2,8 +2,12 @@ use crate::{
     atoms::Atoms, decorator::Decorator, keyboard::Keyboard, layout_manager::LayoutManager,
     screen_manager::ScreenManager,
 };
-use config::Config;
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use config::{AvailableActions, Config};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{mpsc::Sender, Arc},
+};
 
 /// The context required by `Handlers` to properly handle all sorts of events, this context can and
 /// should be clones as many handlers may be interested in the same kind of events.
@@ -14,7 +18,7 @@ pub struct EventContext<'ec, E> {
     pub conn: Arc<xcb::Connection>,
     /// The window manager configuration, used to get user defined parameters that can influence
     /// how events are handled
-    pub config: Rc<Config>,
+    pub config: Rc<RefCell<Config>>,
     /// The keyboard state retrieved from `XKB`, this is used to define which key is pressed
     /// through the Keycode we get from `xcb::x::KeyPressEvent`
     pub keyboard: &'ec Keyboard,
@@ -29,6 +33,10 @@ pub struct EventContext<'ec, E> {
     pub decorator: &'ec Decorator,
     /// All the atoms that the window manager has cached and may be needed to handle an event
     pub atoms: &'ec Atoms,
+    /// Channel where actions can be sent back to the window manager for actions that should affect
+    /// global behavior, like `AvailableActions::Reload` for example. Which should reload the
+    /// entire configuration for the window manager
+    pub action_tx: Sender<AvailableActions>,
 }
 
 impl Clone for EventContext<'_, xcb::x::KeyPressEvent> {
@@ -55,6 +63,7 @@ impl Clone for EventContext<'_, xcb::x::KeyPressEvent> {
             atoms: self.atoms,
             decorator: self.decorator,
             layout_manager: self.layout_manager,
+            action_tx: self.action_tx.clone(),
         }
     }
 }
@@ -72,6 +81,7 @@ impl Clone for EventContext<'_, xcb::x::MapRequestEvent> {
             atoms: self.atoms,
             decorator: self.decorator,
             layout_manager: self.layout_manager,
+            action_tx: self.action_tx.clone(),
         }
     }
 }
@@ -89,6 +99,7 @@ impl Clone for EventContext<'_, xcb::x::DestroyNotifyEvent> {
             atoms: self.atoms,
             decorator: self.decorator,
             layout_manager: self.layout_manager,
+            action_tx: self.action_tx.clone(),
         }
     }
 }
@@ -119,6 +130,7 @@ impl Clone for EventContext<'_, xcb::x::EnterNotifyEvent> {
             atoms: self.atoms,
             decorator: self.decorator,
             layout_manager: self.layout_manager,
+            action_tx: self.action_tx.clone(),
         }
     }
 }
@@ -140,6 +152,7 @@ impl Clone for EventContext<'_, xcb::x::MapNotifyEvent> {
             atoms: self.atoms,
             decorator: self.decorator,
             layout_manager: self.layout_manager,
+            action_tx: self.action_tx.clone(),
         }
     }
 }

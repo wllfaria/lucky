@@ -1,5 +1,5 @@
 use config::Config;
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use crate::screen_manager::Position;
 
@@ -44,20 +44,18 @@ pub struct Screen {
 }
 
 impl Screen {
-    pub fn new(config: &Rc<Config>, position: Position) -> Self {
+    pub fn new(config: &Rc<RefCell<Config>>, position: Position) -> Self {
         Screen {
             position,
             active_workspace: 1,
-            workspaces: (0..config.workspaces()).map(Workspace::new).collect(),
+            workspaces: (0..config.borrow().workspaces())
+                .map(Workspace::new)
+                .collect(),
         }
     }
 
     pub fn get_active_client_index(&self) -> Option<xcb::x::Window> {
         self.workspaces[self.active_workspace as usize].focused_client
-    }
-
-    pub fn set_active_client(&mut self) -> anyhow::Result<()> {
-        Ok(())
     }
 
     pub fn get_active_workspace(&self) -> &Workspace {

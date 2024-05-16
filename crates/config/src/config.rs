@@ -52,6 +52,17 @@ impl Config {
     pub fn focus_new_clients(&self) -> bool {
         self.focus_new_clients
     }
+
+    pub fn update(&mut self, other: Config) {
+        self.leader = other.leader;
+        self.actions = other.actions;
+        self.commands = other.commands;
+        self.workspaces = other.workspaces;
+        self.border_width = other.border_width;
+        self.border_color = other.border_color;
+        self.active_border_color = other.active_border_color;
+        self.focus_new_clients = other.focus_new_clients;
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -63,7 +74,7 @@ pub enum AvailableLeaderKeys {
 }
 
 /// All the actions available for any given key combination
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AvailableActions {
     /// Focus the client immediatly to the left
     FocusLeft,
@@ -136,8 +147,8 @@ impl Action {
         self.modifier
     }
 
-    pub fn action(&self) -> &AvailableActions {
-        &self.action
+    pub fn action(&self) -> AvailableActions {
+        self.action.clone()
     }
 }
 

@@ -7,11 +7,14 @@ use crate::{
     layout_manager::LayoutManager,
     screen_manager::{Position, ScreenManager},
 };
-use config::Config;
+use config::{AvailableActions, Config};
 use std::{
     cell::RefCell,
     rc::Rc,
-    sync::{mpsc::channel, Arc},
+    sync::{
+        mpsc::{channel, Sender},
+        Arc,
+    },
 };
 use xcb::{
     randr,
@@ -21,7 +24,7 @@ use xcb::{
 pub struct Lucky {
     conn: Arc<xcb::Connection>,
     keyboard: Keyboard,
-    config: Rc<Config>,
+    config: Rc<RefCell<Config>>,
     handlers: Handlers,
     screen_manager: Rc<RefCell<ScreenManager>>,
     atoms: Atoms,
@@ -30,15 +33,15 @@ pub struct Lucky {
 }
 
 impl Lucky {
-    pub fn new(config: Config) -> Self {
+    pub fn new() -> Self {
         let (conn, _) = xcb::Connection::connect(None).expect("failed to initialize self.conn to the X server. Check the DISPLAY environment variable");
         let conn = Arc::new(conn);
-        let config = Rc::new(config);
+        let config = Rc::new(RefCell::new(config::load_config()));
         let root = Self::setup(&conn);
         let screen_positions = Self::get_monitors(&conn, root);
 
         Lucky {
-            keyboard: Keyboard::new(&conn, root, config.clone()),
+            keyboard: Keyboard::new(&conn, config.clone(), root),
             layout_manager: LayoutManager::new(conn.clone(), config.clone()),
             decorator: Decorator::new(conn.clone(), config.clone()),
             atoms: Atoms::new(&conn),
@@ -54,49 +57,22 @@ impl Lucky {
     }
 
     pub fn run(mut self) {
-        let (sender, receiver) = channel::<XEvent>();
+        let (event_tx, event_rx) = channel::<XEvent>();
+        let (action_tx, action_rx) = channel::<AvailableActions>();
 
         let conn = self.conn.clone();
-        std::thread::spawn(move || loop {
-            if let Ok(event) = conn.wait_for_event() {
-                match event {
-                    xcb::Event::X(xcb::x::Event::KeyPress(e)) => {
-                        if sender.send(XEvent::KeyPress(e)).is_err() {
-                            tracing::debug!("failed to send event through channel");
-                            std::process::abort();
-                        }
-                    }
-                    xcb::Event::X(xcb::x::Event::MapRequest(e)) => {
-                        if sender.send(XEvent::MapRequest(e)).is_err() {
-                            tracing::debug!("failed to send event through channel");
-                            std::process::abort();
-                        }
-                    }
-                    xcb::Event::X(xcb::x::Event::DestroyNotify(e)) => {
-                        if sender.send(XEvent::DestroyNotify(e)).is_err() {
-                            tracing::debug!("failed to send event through channel");
-                            std::process::abort();
-                        }
-                    }
-                    xcb::Event::X(xcb::x::Event::EnterNotify(e)) => {
-                        // TODO: when entering the window we should focus it if `focus_on_hover` is
-                        // enabled
-                        if sender.send(XEvent::EnterNotify(e)).is_err() {
-                            tracing::debug!("failed to send event through channel");
-                            std::process::abort();
-                        }
-                    }
-                    xcb::Event::X(xcb::x::Event::ConfigureRequest(_)) => {}
-                    xcb::Event::X(xcb::x::Event::PropertyNotify(_)) => {}
-                    xcb::Event::X(xcb::x::Event::UnmapNotify(_)) => {}
-                    _ => (),
-                };
-            };
-            conn.flush().unwrap();
-        });
+        let event_tx_c = event_tx.clone();
+        std::thread::spawn(move || poll_events(conn.clone(), event_tx_c));
 
         loop {
-            if let Ok(event) = receiver.recv() {
+            if let Ok(AvailableActions::Reload) = action_rx.try_recv() {
+                self.config.borrow_mut().update(config::load_config());
+                self.layout_manager
+                    .display_screens(&self.screen_manager, &self.decorator)
+                    .expect("failed to redraw the screen");
+            }
+
+            if let Ok(event) = event_rx.recv() {
                 match event {
                     XEvent::KeyPress(event) => self.handlers.on_key_press(EventContext {
                         event,
@@ -107,6 +83,7 @@ impl Lucky {
                         atoms: &self.atoms,
                         decorator: &self.decorator,
                         layout_manager: &self.layout_manager,
+                        action_tx: action_tx.clone(),
                     }),
                     XEvent::MapRequest(event) => self.handlers.on_map_request(EventContext {
                         event,
@@ -117,6 +94,7 @@ impl Lucky {
                         atoms: &self.atoms,
                         decorator: &self.decorator,
                         layout_manager: &self.layout_manager,
+                        action_tx: action_tx.clone(),
                     }),
                     XEvent::DestroyNotify(event) => self.handlers.on_destroy_notify(EventContext {
                         event,
@@ -127,6 +105,7 @@ impl Lucky {
                         atoms: &self.atoms,
                         decorator: &self.decorator,
                         layout_manager: &self.layout_manager,
+                        action_tx: action_tx.clone(),
                     }),
                     XEvent::EnterNotify(event) => self.handlers.on_enter_notify(EventContext {
                         event,
@@ -137,6 +116,7 @@ impl Lucky {
                         atoms: &self.atoms,
                         decorator: &self.decorator,
                         layout_manager: &self.layout_manager,
+                        action_tx: action_tx.clone(),
                     }),
                     XEvent::UnmapNotify(_) => {}
                     XEvent::PropertyNotify(_) => {}
@@ -223,6 +203,46 @@ impl From<&xcb::randr::MonitorInfo> for Position {
             width: value.width().into(),
             height: value.height().into(),
         }
+    }
+}
+
+fn poll_events(conn: Arc<xcb::Connection>, event_tx: Sender<XEvent>) {
+    loop {
+        if let Ok(event) = conn.wait_for_event() {
+            match event {
+                xcb::Event::X(xcb::x::Event::KeyPress(e)) => {
+                    if event_tx.send(XEvent::KeyPress(e)).is_err() {
+                        tracing::debug!("failed to send event through channel");
+                        std::process::abort();
+                    }
+                }
+                xcb::Event::X(xcb::x::Event::MapRequest(e)) => {
+                    if event_tx.send(XEvent::MapRequest(e)).is_err() {
+                        tracing::debug!("failed to send event through channel");
+                        std::process::abort();
+                    }
+                }
+                xcb::Event::X(xcb::x::Event::DestroyNotify(e)) => {
+                    if event_tx.send(XEvent::DestroyNotify(e)).is_err() {
+                        tracing::debug!("failed to send event through channel");
+                        std::process::abort();
+                    }
+                }
+                xcb::Event::X(xcb::x::Event::EnterNotify(e)) => {
+                    // TODO: when entering the window we should focus it if `focus_on_hover` is
+                    // enabled
+                    if event_tx.send(XEvent::EnterNotify(e)).is_err() {
+                        tracing::debug!("failed to send event through channel");
+                        std::process::abort();
+                    }
+                }
+                xcb::Event::X(xcb::x::Event::ConfigureRequest(_)) => {}
+                xcb::Event::X(xcb::x::Event::PropertyNotify(_)) => {}
+                xcb::Event::X(xcb::x::Event::UnmapNotify(_)) => {}
+                _ => (),
+            };
+        };
+        conn.flush().unwrap();
     }
 }
 

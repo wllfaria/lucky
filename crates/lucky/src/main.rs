@@ -1,11 +1,11 @@
 mod atoms;
-mod clients;
 mod decorator;
 mod event;
 mod handlers;
 mod keyboard;
 mod layout_manager;
 mod lucky;
+mod screen;
 mod screen_manager;
 
 use lucky::Lucky;
@@ -17,9 +17,8 @@ fn main() -> anyhow::Result<()> {
         .with_max_level(Level::TRACE)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("failed to set global subscriber");
-    let config = config::load_config();
 
-    Lucky::new(config).run();
+    Lucky::new().run();
 
     Ok(())
 }

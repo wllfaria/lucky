@@ -1,6 +1,6 @@
-use crate::clients::{Client, Screen};
+use crate::screen::{Client, Screen};
 use config::Config;
-use std::{collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 #[derive(Debug)]
 pub struct Position {
@@ -25,11 +25,11 @@ pub struct ScreenManager {
     screens: Vec<Screen>,
     clients: HashMap<xcb::x::Window, Client>,
     active_screen: usize,
-    config: Rc<Config>,
+    config: Rc<RefCell<Config>>,
 }
 
 impl ScreenManager {
-    pub fn new(screen_positions: Vec<Position>, config: Rc<Config>) -> Self {
+    pub fn new(screen_positions: Vec<Position>, config: Rc<RefCell<Config>>) -> Self {
         ScreenManager {
             active_screen: 0,
             clients: HashMap::new(),
@@ -67,7 +67,7 @@ impl ScreenManager {
         let workspace = &mut screen.workspaces[screen.active_workspace as usize];
         workspace.clients.push(frame);
 
-        if self.config.focus_new_clients() || workspace.clients.len().eq(&1) {
+        if self.config.borrow().focus_new_clients() || workspace.clients.len().eq(&1) {
             workspace.focused_client = Some(frame);
         }
     }
@@ -82,10 +82,9 @@ impl ScreenManager {
     pub fn close_focused_client(&mut self) -> anyhow::Result<Option<Client>> {
         let active_screen = &mut self.screens[self.active_screen];
         if let Some(frame) = active_screen.get_active_client_index() {
-            let active_workspace =
-                &mut active_screen.workspaces[active_screen.active_workspace as usize];
-            active_workspace.clients.retain(|i| !i.eq(&frame));
-            active_workspace.focused_client = active_workspace.clients.first().copied();
+            let workspace = &mut active_screen.workspaces[active_screen.active_workspace as usize];
+            workspace.clients.retain(|i| !i.eq(&frame));
+            workspace.focused_client = workspace.clients.first().copied();
             return Ok(self.clients.remove(&frame));
         }
         Ok(None)

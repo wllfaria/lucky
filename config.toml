@@ -3,7 +3,7 @@ workspaces = 10
 
 border_width = 4
 border_color = "#252525"
-active_border_color = "#ff0000"
+active_border_color = "#2D4F67"
 focus_new_clients = true
 
 [[actions]]
@@ -11,12 +11,52 @@ modifiers = ["Leader"]
 key = "q"
 action = "Close"
 
-[[commands]]
+[[actions]]
+modifiers = ["Leader", "Shift"]
+key = "r"
+action = "Reload"
+
+[[actions]]
 modifiers = ["Leader"]
-key = "Enter"
-command = "alacritty"
+key = "h"
+action = "FocusLeft"
+
+[[actions]]
+modifiers = ["Leader"]
+key = "j"
+action = "FocusDown"
+
+[[actions]]
+modifiers = ["Leader"]
+key = "k"
+action = "FocusUp"
+
+[[actions]]
+modifiers = ["Leader"]
+key = "l"
+action = "FocusRight"
+
+[[actions]]
+modifiers = ["Leader", "Shift"]
+key = "h"
+action = "MoveLeft"
+
+[[actions]]
+modifiers = ["Leader", "Shift"]
+key = "j"
+action = "MoveDown"
+
+[[actions]]
+modifiers = ["Leader", "Shift"]
+key = "k"
+action = "MoveUp"
+
+[[actions]]
+modifiers = ["Leader", "Shift"]
+key = "l"
+action = "MoveRight"
 
 [[commands]]
 modifiers = ["Leader"]
-key = "d"
+key = "Enter"
 command = "wezterm"
