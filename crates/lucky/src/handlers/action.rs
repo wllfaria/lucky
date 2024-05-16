@@ -22,10 +22,9 @@ impl Handler for ActionHandler {
             {
                 match action.action() {
                     AvailableActions::Close => {
-                        // attempt to close the active client, if theres none, we do nothing
-                        if let Some(client) =
-                            context.screen_manager.borrow_mut().close_focused_client()?
-                        {
+                        let mut screen_manager = context.screen_manager.borrow_mut();
+                        if let Some(client) = screen_manager.close_focused_client()? {
+                            drop(screen_manager);
                             context.layout_manager.close_client(client, &context)?;
                             context
                                 .layout_manager

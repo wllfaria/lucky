@@ -1,6 +1,6 @@
 use crate::clients::{Client, Screen};
 use config::Config;
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 #[derive(Debug)]
 pub struct Position {
@@ -23,7 +23,7 @@ impl Position {
 
 pub struct ScreenManager {
     screens: Vec<Screen>,
-    clients: Vec<Client>,
+    clients: HashMap<xcb::x::Window, Client>,
     active_screen: usize,
     config: Rc<Config>,
 }
@@ -32,7 +32,7 @@ impl ScreenManager {
     pub fn new(screen_positions: Vec<Position>, config: Rc<Config>) -> Self {
         ScreenManager {
             active_screen: 0,
-            clients: vec![],
+            clients: HashMap::new(),
             screens: screen_positions
                 .into_iter()
                 .map(|pos| Screen::new(&config, pos))
@@ -53,45 +53,40 @@ impl ScreenManager {
     /// even when `focus_new_clients` is false, if the client is the only client on the workspace
     /// we focus it
     pub fn create_client(&mut self, frame: xcb::x::Window, window: xcb::x::Window) {
-        let index = self.clients.len();
-        self.clients.push(Client {
+        self.clients.insert(
             frame,
-            window,
-            visible: true,
-            workspace: self.screens[self.active_screen].active_workspace,
-        });
+            Client {
+                frame,
+                window,
+                visible: true,
+                workspace: self.screens[self.active_screen].active_workspace,
+            },
+        );
 
         let screen = &mut self.screens[self.active_screen];
         let workspace = &mut screen.workspaces[screen.active_workspace as usize];
-        workspace.clients.push(index);
+        workspace.clients.push(frame);
 
         if self.config.focus_new_clients() || workspace.clients.len().eq(&1) {
-            tracing::debug!(
-                "focus_new_clients is defined, changing focus to window {:?} on screen {:?} on workspace {:?} on index {}",
-                window,
-                self.active_screen,
-                workspace,
-                index
-            );
-            workspace.focused_client = Some(index);
+            workspace.focused_client = Some(frame);
         }
     }
 
     pub fn get_focused_client(&self) -> Option<&Client> {
         if let Some(index) = self.screens[self.active_screen].get_active_client_index() {
-            tracing::debug!(
-                "getting focused client from screen {:?} on index {:?}",
-                self.active_screen,
-                index
-            );
-            return Some(&self.clients[index]);
+            return self.clients.get(&index);
         }
         None
     }
 
     pub fn close_focused_client(&mut self) -> anyhow::Result<Option<Client>> {
-        if let Some(index) = self.screens[self.active_screen].get_active_client_index() {
-            return Ok(Some(self.clients.remove(index)));
+        let active_screen = &mut self.screens[self.active_screen];
+        if let Some(frame) = active_screen.get_active_client_index() {
+            let active_workspace =
+                &mut active_screen.workspaces[active_screen.active_workspace as usize];
+            active_workspace.clients.retain(|i| !i.eq(&frame));
+            active_workspace.focused_client = active_workspace.clients.first().copied();
+            return Ok(self.clients.remove(&frame));
         }
         Ok(None)
     }
@@ -100,7 +95,11 @@ impl ScreenManager {
         screen.workspaces[screen.active_workspace as usize]
             .clients
             .iter()
-            .map(|index| &self.clients[*index])
+            .map(|frame| {
+                self.clients
+                    .get(frame)
+                    .expect("we tried to index into an non-existing frame.")
+            })
             .collect::<Vec<&Client>>()
     }
 }

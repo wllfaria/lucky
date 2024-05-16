@@ -54,7 +54,7 @@ impl Decorator {
                 class: xcb::x::WindowClass::InputOutput,
                 visual: root.root_visual(),
                 value_list: &[
-                    xcb::x::Cw::BackPixel(root.white_pixel()),
+                    xcb::x::Cw::BackPixel(root.black_pixel()),
                     xcb::x::Cw::BorderPixel(self.config.border_color()),
                     xcb::x::Cw::EventMask(
                         xcb::x::EventMask::EXPOSURE

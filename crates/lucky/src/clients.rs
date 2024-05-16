@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::screen_manager::Position;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Client {
     pub frame: xcb::x::Window,
     pub window: xcb::x::Window,
@@ -21,8 +21,8 @@ pub enum WorkspaceLayout {
 pub struct Workspace {
     pub id: u8,
     pub layout: WorkspaceLayout,
-    pub clients: Vec<usize>,
-    pub focused_client: Option<usize>,
+    pub clients: Vec<xcb::x::Window>,
+    pub focused_client: Option<xcb::x::Window>,
 }
 
 impl Workspace {
@@ -52,7 +52,7 @@ impl Screen {
         }
     }
 
-    pub fn get_active_client_index(&self) -> Option<usize> {
+    pub fn get_active_client_index(&self) -> Option<xcb::x::Window> {
         self.workspaces[self.active_workspace as usize].focused_client
     }
 
