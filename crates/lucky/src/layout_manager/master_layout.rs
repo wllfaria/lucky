@@ -33,7 +33,12 @@ impl TallLayout {
         };
 
         for (i, client) in clients.iter().enumerate() {
-            decorator.unfocus_client(client)?;
+            match decorator.unfocus_client(client) {
+                Ok(_) => tracing::info!("displayed client {:?}", client),
+                Err(e) => {
+                    return Err(e);
+                }
+            }
             match i {
                 0 => Self::display_master_client(conn, client, screen, master_width, config),
                 _ => Self::display_sibling_client(
@@ -54,7 +59,10 @@ impl TallLayout {
                 .find(|&&client| client.eq(focused_client))
                 .expect("focused client must exist within all the clients");
             if focused_client.eq(client) {
-                decorator.focus_client(client)?;
+                match decorator.focus_client(client) {
+                    Ok(_) => tracing::info!("focused client {:?}", client),
+                    Err(e) => return Err(e),
+                }
             }
         }
 

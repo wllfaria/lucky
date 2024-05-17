@@ -22,7 +22,12 @@ fn main() -> anyhow::Result<()> {
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
 
-    Lucky::new()?.run();
+    match Lucky::new() {
+        Ok(wm) => wm.run(),
+        Err(e) => {
+            tracing::error!("an error happened: {e:?}");
+        }
+    };
 
     Ok(())
 }

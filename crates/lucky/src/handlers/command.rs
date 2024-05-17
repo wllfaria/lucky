@@ -23,8 +23,11 @@ impl Handler for CommandHandler {
                     .args(command.args())
                     .spawn()
                 {
-                    Ok(_) => {}
-                    Err(e) => tracing::debug!("{e:#?}\n\n{command:#?}"),
+                    Ok(_) => tracing::debug!("spawning command {:?} handled successfully", command),
+                    Err(_) => {
+                        tracing::error!("failed to spawn command {:?}", command);
+                        anyhow::bail!("failed to spawn command {:?}", command);
+                    }
                 }
             }
         }

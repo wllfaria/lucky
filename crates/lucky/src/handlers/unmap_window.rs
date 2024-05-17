@@ -18,9 +18,16 @@ impl Handler for UnmapWindowHandler {
             .find(|client| client.window.eq(&window))
         {
             let frame = client.frame;
-            context
+            match context
                 .layout_manager
-                .close_client(client.clone(), context.atoms)?;
+                .close_client(client.clone(), context.atoms)
+            {
+                Ok(_) => tracing::debug!("succesfully unmapped window {:?}", window),
+                Err(e) => {
+                    tracing::error!("failed to unmap client {:?}", window);
+                    return Err(e);
+                }
+            }
 
             drop(screen_manager);
             let mut screen_manager = context.screen_manager.borrow_mut();
@@ -36,9 +43,22 @@ impl Handler for UnmapWindowHandler {
             workspace.set_focused_client(workspace.clients().first().copied());
         }
 
-        context
+        match context
             .layout_manager
-            .display_screens(&context.screen_manager, context.decorator)?;
+            .display_screens(&context.screen_manager, context.decorator)
+        {
+            Ok(_) => tracing::info!(
+                "displayed all screens after unmapping a window {:?}",
+                window
+            ),
+            Err(e) => {
+                tracing::error!(
+                    "failed to display screens after unmapping a window {:?}",
+                    window
+                );
+                return Err(e);
+            }
+        }
 
         Ok(())
     }
