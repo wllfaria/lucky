@@ -12,6 +12,7 @@ use config::{AvailableActions, Config};
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 use xcb::Xid;
 
+#[derive(Debug, PartialEq)]
 pub enum ActionHandledStatus {
     FullyHandled,
     Unhandled,
@@ -48,8 +49,6 @@ impl LayoutManager {
         for screen in screen_manager.borrow().screens() {
             let workspace = screen.active_workspace();
             let screen_manager = screen_manager.borrow();
-
-            tracing::debug!("{screen:?} {workspace:?}");
 
             let visible_clients = screen_manager
                 .get_visible_screen_clients(screen)

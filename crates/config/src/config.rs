@@ -2,7 +2,7 @@ use xcb::x::KeyButMask;
 
 use crate::keysyms::Keysym;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Config {
     /// Leader key is an alias to make easy to switch the key used to execute commands, instead of
     /// using `Mod1` or `Control` you can use `Leader` which makes easy to switch the key assigned
@@ -64,6 +64,21 @@ impl Config {
         self.border_color = other.border_color;
         self.active_border_color = other.active_border_color;
         self.focus_new_clients = other.focus_new_clients;
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            active_border_color: 0x2D4F67,
+            border_color: 0x252525,
+            focus_new_clients: true,
+            border_width: 4,
+            workspaces: 9,
+            leader: AvailableLeaderKeys::Mod1,
+            actions: vec![],
+            commands: vec![],
+        }
     }
 }
 

@@ -565,3 +565,78 @@ impl TallLayout {
         });
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::RngCore;
+    use xcb::XidNew;
+
+    fn create_fake_client() -> (xcb::x::Window, xcb::x::Window) {
+        let mut rng = rand::thread_rng();
+        unsafe {
+            (
+                xcb::x::Window::new(rng.next_u32()),
+                xcb::x::Window::new(rng.next_u32()),
+            )
+        }
+    }
+
+    #[test]
+    fn test_client_focusing() {
+        let screen_positions = vec![Position::new(0, 0, 100, 100)];
+        let config = Rc::new(RefCell::new(Config::default()));
+        let mut screen_manager = ScreenManager::new(screen_positions, config);
+
+        let (frame_a, client_a) = create_fake_client();
+        let (frame_b, client_b) = create_fake_client();
+        screen_manager.create_client(frame_a, client_a);
+        screen_manager.create_client(frame_b, client_b);
+        let screen = screen_manager.screen_mut(0);
+        let workspace = screen.active_workspace_mut();
+
+        // ┌──────────┐┌──────────┐
+        // │ selected ││          │
+        // └──────────┘└──────────┘
+        // set the first one to be selected
+        workspace.set_focused_client(Some(frame_a));
+        assert!(workspace.clients().len().eq(&2));
+        assert!(screen.focused_client().eq(&Some(frame_a)));
+
+        // ┌──────────┐┌──────────┐
+        // │          ││ selected │
+        // └──────────┘└──────────┘
+        // select the second one
+        let action_handled_status = TallLayout::focus_right_or_bottom(&mut screen_manager);
+        let screen = screen_manager.screen_mut(0);
+        assert!(screen.focused_client().eq(&Some(frame_b)));
+        assert!(action_handled_status.eq(&ActionHandledStatus::FullyHandled));
+
+        // ┌──────────┐┌──────────┐
+        // │          ││ selected │
+        // └──────────┘└──────────┘
+        // since we are at the last, it should do nothing and return Unhandled
+        let action_handled_status = TallLayout::focus_right_or_bottom(&mut screen_manager);
+        let screen = screen_manager.screen_mut(0);
+        assert!(screen.focused_client().eq(&Some(frame_b)));
+        assert!(action_handled_status.eq(&ActionHandledStatus::Unhandled));
+
+        // ┌──────────┐┌──────────┐
+        // │ selected ││          │
+        // └──────────┘└──────────┘
+        // set the first one to be selected
+        let action_handled_status = TallLayout::focus_left(&mut screen_manager);
+        let screen = screen_manager.screen_mut(0);
+        assert!(screen.focused_client().eq(&Some(frame_a)));
+        assert!(action_handled_status.eq(&ActionHandledStatus::FullyHandled));
+
+        // ┌──────────┐┌──────────┐
+        // │ selected ││          │
+        // └──────────┘└──────────┘
+        // similarly, when at the first, should do nothing and return unhandled
+        let action_handled_status = TallLayout::focus_left(&mut screen_manager);
+        let screen = screen_manager.screen_mut(0);
+        assert!(screen.focused_client().eq(&Some(frame_a)));
+        assert!(action_handled_status.eq(&ActionHandledStatus::Unhandled));
+    }
+}

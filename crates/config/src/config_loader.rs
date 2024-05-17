@@ -125,9 +125,9 @@ impl TryFrom<UnresolvedConfig> for Config {
             commands.push(command.try_into()?);
         }
 
-        if value.workspaces.gt(&10) || value.workspaces.eq(&0) {
+        if value.workspaces.gt(&9) || value.workspaces.eq(&0) {
             return Err(ConfigError::Workspaces(format!(
-                "workspaces = {}: number of workspaces must be greater than 0, and up to 10",
+                "workspaces = {}: number of workspaces must be greater than 0, and up to 9",
                 value.workspaces
             )));
         }

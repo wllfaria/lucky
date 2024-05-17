@@ -60,7 +60,7 @@ impl Workspace {
     }
 
     pub fn remove_client(&mut self, client: xcb::x::Window) {
-        self.clients.retain(|i| !i.eq(&client));
+        self.clients.retain(|i| i.ne(&client));
     }
 }
 

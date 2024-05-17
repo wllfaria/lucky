@@ -266,7 +266,7 @@ pub enum XEvent {
     MapRequest(xcb::x::MapRequestEvent),
     DestroyNotify(xcb::x::DestroyNotifyEvent),
     EnterNotify(xcb::x::EnterNotifyEvent),
+    UnmapNotify(xcb::x::UnmapNotifyEvent),
     PropertyNotify(xcb::x::PropertyNotifyEvent),
     ConfigureRequest(xcb::x::ConfigureRequestEvent),
-    UnmapNotify(xcb::x::UnmapNotifyEvent),
 }

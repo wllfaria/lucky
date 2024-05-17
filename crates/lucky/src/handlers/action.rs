@@ -17,44 +17,27 @@ impl Handler for ActionHandler {
             if let Some(action) = context.config.borrow().actions().iter().find(|action| {
                 action.key().eq(&keysym) && context.event.state().eq(&action.modifiers().into())
             }) {
+                use AvailableActions::*;
                 match action.action() {
-                    AvailableActions::Close => self.handle_close(&context)?,
-                    AvailableActions::FocusLeft => self.handle_focus_left(&context)?,
-                    AvailableActions::FocusDown => self.handle_focus_down(&context)?,
-                    AvailableActions::FocusUp => self.handle_focus_up(&context)?,
-                    AvailableActions::FocusRight => self.handle_focus_right(&context)?,
-                    AvailableActions::MoveLeft => self.handle_move_left(&context)?,
-                    AvailableActions::MoveDown => self.handle_move_down(&context)?,
-                    AvailableActions::MoveUp => self.handle_move_up(&context)?,
-                    AvailableActions::MoveRight => self.handle_move_right(&context)?,
-                    AvailableActions::Reload => context.action_tx.send(action.action())?,
-                    AvailableActions::Workspace1 => {
-                        self.handle_change_workspace(&context, action.action())?
-                    }
-                    AvailableActions::Workspace2 => {
-                        self.handle_change_workspace(&context, action.action())?
-                    }
-                    AvailableActions::Workspace3 => {
-                        self.handle_change_workspace(&context, action.action())?
-                    }
-                    AvailableActions::Workspace4 => {
-                        self.handle_change_workspace(&context, action.action())?
-                    }
-                    AvailableActions::Workspace5 => {
-                        self.handle_change_workspace(&context, action.action())?
-                    }
-                    AvailableActions::Workspace6 => {
-                        self.handle_change_workspace(&context, action.action())?
-                    }
-                    AvailableActions::Workspace7 => {
-                        self.handle_change_workspace(&context, action.action())?
-                    }
-                    AvailableActions::Workspace8 => {
-                        self.handle_change_workspace(&context, action.action())?
-                    }
-                    AvailableActions::Workspace9 => {
-                        self.handle_change_workspace(&context, action.action())?
-                    }
+                    Close => self.handle_close(&context)?,
+                    FocusLeft => self.handle_focus_left(&context)?,
+                    FocusDown => self.handle_focus_down(&context)?,
+                    FocusUp => self.handle_focus_up(&context)?,
+                    FocusRight => self.handle_focus_right(&context)?,
+                    MoveLeft => self.handle_move_left(&context)?,
+                    MoveDown => self.handle_move_down(&context)?,
+                    MoveUp => self.handle_move_up(&context)?,
+                    MoveRight => self.handle_move_right(&context)?,
+                    Reload => context.action_tx.send(action.action())?,
+                    Workspace1 => self.handle_change_workspace(&context, action.action())?,
+                    Workspace2 => self.handle_change_workspace(&context, action.action())?,
+                    Workspace3 => self.handle_change_workspace(&context, action.action())?,
+                    Workspace4 => self.handle_change_workspace(&context, action.action())?,
+                    Workspace5 => self.handle_change_workspace(&context, action.action())?,
+                    Workspace6 => self.handle_change_workspace(&context, action.action())?,
+                    Workspace7 => self.handle_change_workspace(&context, action.action())?,
+                    Workspace8 => self.handle_change_workspace(&context, action.action())?,
+                    Workspace9 => self.handle_change_workspace(&context, action.action())?,
                 }
             }
         }

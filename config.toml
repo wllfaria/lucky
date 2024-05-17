@@ -110,3 +110,8 @@ command = "wezterm"
 modifiers = ["Leader"]
 key = "d"
 command = "rofi -show drun"
+
+[[commands]]
+modifiers = ["Leader"]
+key = "t"
+command = "thunar"
