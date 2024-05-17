@@ -175,13 +175,20 @@ impl TryFrom<UnresolvedCommandEntry> for Command {
     type Error = ConfigError;
 
     fn try_from(value: UnresolvedCommandEntry) -> Result<Self, Self::Error> {
+        let (command, args): (String, Args) = value
+            .command
+            .split_once(' ')
+            .map(|(left, right)| (left.to_string(), right.into()))
+            .unwrap_or((value.command, Args(vec![])));
+
         Ok(Command {
-            command: value.command,
+            command: command.to_string(),
             key: value.key.as_str().try_into()?,
             modifier: value
                 .modifiers
                 .into_iter()
                 .fold(0, |acc, modifier| acc + u32::from(modifier)),
+            args: args.0,
         })
     }
 }
@@ -221,5 +228,18 @@ impl From<UnresolvedModifier> for u32 {
             UnresolvedModifier::Mod1 => 0x00000008,
             _ => 0x00000000,
         }
+    }
+}
+
+pub struct Args(Vec<String>);
+
+impl From<&str> for Args {
+    fn from(value: &str) -> Self {
+        let args = value
+            .split_whitespace()
+            .map(|slice| slice.to_string())
+            .collect::<Vec<String>>();
+
+        Self(args)
     }
 }

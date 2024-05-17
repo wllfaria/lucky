@@ -60,3 +60,8 @@ action = "MoveRight"
 modifiers = ["Leader"]
 key = "Enter"
 command = "wezterm"
+
+[[commands]]
+modifiers = ["Leader"]
+key = "d"
+command = "rofi -show drun"

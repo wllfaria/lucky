@@ -9,7 +9,6 @@ impl Handler for UnmapWindowHandler {
         context: EventContext<xcb::x::UnmapNotifyEvent>,
     ) -> anyhow::Result<()> {
         let window = context.event.window();
-        tracing::debug!("{window:?}");
         let screen_manager = context.screen_manager.borrow();
 
         if let Some(client) = screen_manager
@@ -17,7 +16,6 @@ impl Handler for UnmapWindowHandler {
             .values()
             .find(|client| client.window.eq(&window) || client.frame.eq(&window))
         {
-            tracing::debug!("{client:?}");
             let frame = client.frame;
             context
                 .layout_manager
@@ -25,6 +23,7 @@ impl Handler for UnmapWindowHandler {
 
             drop(screen_manager);
             let mut screen_manager = context.screen_manager.borrow_mut();
+
             screen_manager.screens_mut().iter_mut().for_each(|s| {
                 s.workspaces_mut()
                     .iter_mut()

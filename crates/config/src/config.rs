@@ -138,6 +138,8 @@ pub struct Command {
     pub(crate) key: Keysym,
     /// The string to be spawned when this command is called
     pub(crate) command: String,
+    /// the arguments to be passed to the program that will be spawned
+    pub(crate) args: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -178,6 +180,10 @@ impl Command {
 
     pub fn command(&self) -> &str {
         &self.command
+    }
+
+    pub fn args(&self) -> &[String] {
+        &self.args
     }
 }
 

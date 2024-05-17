@@ -19,9 +19,13 @@ impl Handler for CommandHandler {
                 .iter()
                 .find(|command| command.key().eq(&keysym))
             {
-                std::process::Command::new(command.command())
+                match std::process::Command::new(command.command())
+                    .args(command.args())
                     .spawn()
-                    .unwrap();
+                {
+                    Ok(_) => {}
+                    Err(e) => tracing::debug!("{e:#?}\n\n{command:#?}"),
+                }
             }
         }
         Ok(())
