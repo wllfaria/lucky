@@ -1,6 +1,7 @@
 mod master_layout;
 
 use crate::{
+    atoms::Atoms,
     decorator::Decorator,
     event::EventContext,
     layout_manager::master_layout::TallLayout,
@@ -73,7 +74,7 @@ impl LayoutManager {
 
     pub fn focus_left(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen);
+        let screen = screen_manager.screen(screen_manager.active_screen_idx());
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
@@ -91,7 +92,7 @@ impl LayoutManager {
 
     pub fn focus_down(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen);
+        let screen = screen_manager.screen(screen_manager.active_screen_idx());
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
@@ -110,7 +111,7 @@ impl LayoutManager {
 
     pub fn focus_up(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen);
+        let screen = screen_manager.screen(screen_manager.active_screen_idx());
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
@@ -128,7 +129,7 @@ impl LayoutManager {
 
     pub fn focus_right(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen);
+        let screen = screen_manager.screen(screen_manager.active_screen_idx());
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
@@ -147,7 +148,7 @@ impl LayoutManager {
 
     pub fn move_left(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen);
+        let screen = screen_manager.screen(screen_manager.active_screen_idx());
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
@@ -165,7 +166,7 @@ impl LayoutManager {
 
     pub fn move_down(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen);
+        let screen = screen_manager.screen(screen_manager.active_screen_idx());
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
@@ -183,7 +184,7 @@ impl LayoutManager {
 
     pub fn move_up(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen);
+        let screen = screen_manager.screen(screen_manager.active_screen_idx());
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
@@ -201,7 +202,7 @@ impl LayoutManager {
 
     pub fn move_right(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen);
+        let screen = screen_manager.screen(screen_manager.active_screen_idx());
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
@@ -223,31 +224,27 @@ impl LayoutManager {
     /// close it. Modern clients will usually support `WM_DELETE_WINDOW`, and in this case
     /// we can close by sending a `ClientMessageEvent`, otherwise we have to manually close
     /// it through the `DestroyWindow` event.
-    pub fn close_client(
-        &self,
-        client: Client,
-        context: &EventContext<xcb::x::KeyPressEvent>,
-    ) -> anyhow::Result<()> {
+    pub fn close_client(&self, client: Client, atoms: &Atoms) -> anyhow::Result<()> {
         let cookie = self.conn.send_request(&xcb::x::GetProperty {
             delete: false,
             window: client.window,
-            property: context.atoms.wm_protocols,
+            property: atoms.wm_protocols,
             r#type: xcb::x::ATOM_ATOM,
             long_offset: 0,
             long_length: 1024,
         });
         let protocols = self.conn.wait_for_reply(cookie)?;
-        let atoms: &[xcb::x::Atom] = protocols.value();
+        let protocol_atoms: &[xcb::x::Atom] = protocols.value();
 
-        if atoms
+        if protocol_atoms
             .iter()
-            .any(|&atom| atom == context.atoms.wm_delete_window)
+            .any(|&atom| atom == atoms.wm_delete_window)
         {
             let event = xcb::x::ClientMessageEvent::new(
                 client.window,
-                context.atoms.wm_protocols,
+                atoms.wm_protocols,
                 xcb::x::ClientMessageData::Data32([
-                    context.atoms.wm_delete_window.resource_id(),
+                    atoms.wm_delete_window.resource_id(),
                     xcb::x::CURRENT_TIME,
                     0,
                     0,

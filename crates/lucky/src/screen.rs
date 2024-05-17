@@ -86,6 +86,10 @@ impl Screen {
         self.workspaces[self.active_workspace as usize].focused_client
     }
 
+    pub fn workspaces_mut(&mut self) -> &mut [Workspace] {
+        &mut self.workspaces
+    }
+
     pub fn active_workspace(&self) -> &Workspace {
         &self.workspaces[self.active_workspace as usize]
     }

@@ -118,7 +118,17 @@ impl Lucky {
                         layout_manager: &self.layout_manager,
                         action_tx: action_tx.clone(),
                     }),
-                    XEvent::UnmapNotify(_) => {}
+                    XEvent::UnmapNotify(event) => self.handlers.on_unmap_notify(EventContext {
+                        event,
+                        conn: self.conn.clone(),
+                        keyboard: &self.keyboard,
+                        config: self.config.clone(),
+                        screen_manager: self.screen_manager.clone(),
+                        atoms: &self.atoms,
+                        decorator: &self.decorator,
+                        layout_manager: &self.layout_manager,
+                        action_tx: action_tx.clone(),
+                    }),
                     XEvent::PropertyNotify(_) => {}
                     XEvent::ConfigureRequest(_) => todo!(),
                 }
@@ -236,9 +246,14 @@ fn poll_events(conn: Arc<xcb::Connection>, event_tx: Sender<XEvent>) {
                         std::process::abort();
                     }
                 }
+                xcb::Event::X(xcb::x::Event::UnmapNotify(e)) => {
+                    if event_tx.send(XEvent::UnmapNotify(e)).is_err() {
+                        tracing::debug!("failed to send event through channel");
+                        std::process::abort();
+                    }
+                }
                 xcb::Event::X(xcb::x::Event::ConfigureRequest(_)) => {}
                 xcb::Event::X(xcb::x::Event::PropertyNotify(_)) => {}
-                xcb::Event::X(xcb::x::Event::UnmapNotify(_)) => {}
                 _ => (),
             };
         };

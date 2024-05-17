@@ -15,6 +15,13 @@ pub trait Handler {
         Ok(())
     }
 
+    fn on_unmap_notify(
+        &mut self,
+        _context: EventContext<xcb::x::UnmapNotifyEvent>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+
     fn on_destroy_notify(
         &mut self,
         _context: EventContext<xcb::x::DestroyNotifyEvent>,

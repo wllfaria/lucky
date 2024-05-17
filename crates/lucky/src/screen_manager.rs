@@ -24,7 +24,7 @@ impl Position {
 pub struct ScreenManager {
     screens: Vec<Screen>,
     clients: HashMap<xcb::x::Window, Client>,
-    pub active_screen: usize,
+    active_screen: usize,
     config: Rc<RefCell<Config>>,
 }
 
@@ -41,8 +41,20 @@ impl ScreenManager {
         }
     }
 
+    pub fn clients(&self) -> &HashMap<xcb::x::Window, Client> {
+        &self.clients
+    }
+
+    pub fn clients_mut(&mut self) -> &mut HashMap<xcb::x::Window, Client> {
+        &mut self.clients
+    }
+
     pub fn screens(&self) -> &[Screen] {
         &self.screens
+    }
+
+    pub fn screens_mut(&mut self) -> &mut [Screen] {
+        &mut self.screens
     }
 
     pub fn screen(&self, index: usize) -> &Screen {
@@ -59,6 +71,10 @@ impl ScreenManager {
             "attempted to access an out of bounds screen"
         );
         &mut self.screens[index]
+    }
+
+    pub fn active_screen_idx(&self) -> usize {
+        self.active_screen
     }
 
     /// Creates a new client on the active screen and active workspace on given screen

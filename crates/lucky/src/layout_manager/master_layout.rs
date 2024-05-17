@@ -138,7 +138,7 @@ impl TallLayout {
     }
 
     pub fn focus_left(screen_manager: &mut ScreenManager) -> ActionHandledStatus {
-        let index = screen_manager.active_screen;
+        let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
 
         // If the active workspace has no clients, we return as unhandled for the layout manager to
@@ -197,7 +197,7 @@ impl TallLayout {
     }
 
     pub fn focus_right_or_bottom(screen_manager: &mut ScreenManager) -> ActionHandledStatus {
-        let index = screen_manager.active_screen;
+        let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
 
         // If the active workspace has no clients, we return as unhandled for the layout manager to
@@ -263,7 +263,7 @@ impl TallLayout {
     }
 
     pub fn focus_up(screen_manager: &mut ScreenManager) -> ActionHandledStatus {
-        let index = screen_manager.active_screen;
+        let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
 
         // If the active workspace has no clients, we return as unhandled for the layout manager to
@@ -329,7 +329,7 @@ impl TallLayout {
     }
 
     pub fn move_left(screen_manager: &mut ScreenManager) -> ActionHandledStatus {
-        let index = screen_manager.active_screen;
+        let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
 
         // If the active workspace has no clients, we return as unhandled for the layout manager to
@@ -383,7 +383,7 @@ impl TallLayout {
     }
 
     pub fn move_down(screen_manager: &mut ScreenManager) -> ActionHandledStatus {
-        let index = screen_manager.active_screen;
+        let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
 
         // If the active workspace has no clients, we return as unhandled for the layout manager to
@@ -440,7 +440,7 @@ impl TallLayout {
     }
 
     pub fn move_up(screen_manager: &mut ScreenManager) -> ActionHandledStatus {
-        let index = screen_manager.active_screen;
+        let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
 
         // If the active workspace has no clients, we return as unhandled for the layout manager to
@@ -497,7 +497,7 @@ impl TallLayout {
     }
 
     pub fn move_right(screen_manager: &mut ScreenManager) -> ActionHandledStatus {
-        let index = screen_manager.active_screen;
+        let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
 
         // If the active workspace has no clients, we return as unhandled for the layout manager to

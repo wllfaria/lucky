@@ -17,7 +17,6 @@ impl Handler for ActionHandler {
             if let Some(action) = context.config.borrow().actions().iter().find(|action| {
                 action.key().eq(&keysym) && context.event.state().eq(&action.modifiers().into())
             }) {
-                tracing::debug!("{action:?}");
                 match action.action() {
                     AvailableActions::Close => self.handle_close(&context)?,
                     AvailableActions::FocusLeft => self.handle_focus_left(&context)?,
@@ -52,7 +51,7 @@ impl ActionHandler {
         let mut screen_manager = context.screen_manager.borrow_mut();
         if let Some(client) = screen_manager.close_focused_client()? {
             drop(screen_manager);
-            context.layout_manager.close_client(client, context)?;
+            context.layout_manager.close_client(client, context.atoms)?;
             context
                 .layout_manager
                 .display_screens(&context.screen_manager, context.decorator)?;

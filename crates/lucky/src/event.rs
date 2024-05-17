@@ -156,3 +156,25 @@ impl Clone for EventContext<'_, xcb::x::MapNotifyEvent> {
         }
     }
 }
+
+impl Clone for EventContext<'_, xcb::x::UnmapNotifyEvent> {
+    fn clone(&self) -> Self {
+        let event = xcb::x::UnmapNotifyEvent::new(
+            self.event.event(),
+            self.event.window(),
+            self.event.from_configure(),
+        );
+
+        Self {
+            event,
+            conn: self.conn.clone(),
+            config: self.config.clone(),
+            keyboard: self.keyboard,
+            screen_manager: self.screen_manager.clone(),
+            atoms: self.atoms,
+            decorator: self.decorator,
+            layout_manager: self.layout_manager,
+            action_tx: self.action_tx.clone(),
+        }
+    }
+}
