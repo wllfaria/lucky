@@ -75,7 +75,7 @@ impl Screen {
     pub fn new(config: &Rc<RefCell<Config>>, position: Position) -> Self {
         Screen {
             position,
-            active_workspace: 1,
+            active_workspace: 0,
             workspaces: (0..config.borrow().workspaces())
                 .map(Workspace::new)
                 .collect(),
@@ -96,6 +96,10 @@ impl Screen {
 
     pub fn active_workspace_mut(&mut self) -> &mut Workspace {
         &mut self.workspaces[self.active_workspace as usize]
+    }
+
+    pub fn set_active_workspace(&mut self, workspace: u8) {
+        self.active_workspace = workspace;
     }
 
     pub fn position(&self) -> &Position {

@@ -1,5 +1,5 @@
 leader = "Mod1"
-workspaces = 10
+workspaces = 9
 
 border_width = 4
 border_color = "#252525"
@@ -55,6 +55,51 @@ action = "MoveUp"
 modifiers = ["Leader", "Shift"]
 key = "l"
 action = "MoveRight"
+
+[[actions]]
+modifiers = ["Leader"]
+key = "1"
+action = "Workspace1"
+
+[[actions]]
+modifiers = ["Leader"]
+key = "2"
+action = "Workspace2"
+
+[[actions]]
+modifiers = ["Leader"]
+key = "3"
+action = "Workspace3"
+
+[[actions]]
+modifiers = ["Leader"]
+key = "4"
+action = "Workspace4"
+
+[[actions]]
+modifiers = ["Leader"]
+key = "5"
+action = "Workspace5"
+
+[[actions]]
+modifiers = ["Leader"]
+key = "6"
+action = "Workspace6"
+
+[[actions]]
+modifiers = ["Leader"]
+key = "7"
+action = "Workspace7"
+
+[[actions]]
+modifiers = ["Leader"]
+key = "8"
+action = "Workspace8"
+
+[[actions]]
+modifiers = ["Leader"]
+key = "9"
+action = "Workspace9"
 
 [[commands]]
 modifiers = ["Leader"]

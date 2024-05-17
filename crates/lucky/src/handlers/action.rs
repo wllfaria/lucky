@@ -28,16 +28,33 @@ impl Handler for ActionHandler {
                     AvailableActions::MoveUp => self.handle_move_up(&context)?,
                     AvailableActions::MoveRight => self.handle_move_right(&context)?,
                     AvailableActions::Reload => context.action_tx.send(action.action())?,
-                    AvailableActions::Workspace1 => todo!(),
-                    AvailableActions::Workspace2 => todo!(),
-                    AvailableActions::Workspace3 => todo!(),
-                    AvailableActions::Workspace4 => todo!(),
-                    AvailableActions::Workspace5 => todo!(),
-                    AvailableActions::Workspace6 => todo!(),
-                    AvailableActions::Workspace7 => todo!(),
-                    AvailableActions::Workspace8 => todo!(),
-                    AvailableActions::Workspace9 => todo!(),
-                    AvailableActions::Workspace0 => todo!(),
+                    AvailableActions::Workspace1 => {
+                        self.handle_change_workspace(&context, action.action())?
+                    }
+                    AvailableActions::Workspace2 => {
+                        self.handle_change_workspace(&context, action.action())?
+                    }
+                    AvailableActions::Workspace3 => {
+                        self.handle_change_workspace(&context, action.action())?
+                    }
+                    AvailableActions::Workspace4 => {
+                        self.handle_change_workspace(&context, action.action())?
+                    }
+                    AvailableActions::Workspace5 => {
+                        self.handle_change_workspace(&context, action.action())?
+                    }
+                    AvailableActions::Workspace6 => {
+                        self.handle_change_workspace(&context, action.action())?
+                    }
+                    AvailableActions::Workspace7 => {
+                        self.handle_change_workspace(&context, action.action())?
+                    }
+                    AvailableActions::Workspace8 => {
+                        self.handle_change_workspace(&context, action.action())?
+                    }
+                    AvailableActions::Workspace9 => {
+                        self.handle_change_workspace(&context, action.action())?
+                    }
                 }
             }
         }
@@ -115,6 +132,15 @@ impl ActionHandler {
         context: &EventContext<xcb::x::KeyPressEvent>,
     ) -> anyhow::Result<()> {
         context.layout_manager.move_right(context)?;
+        Ok(())
+    }
+
+    fn handle_change_workspace(
+        &self,
+        context: &EventContext<xcb::x::KeyPressEvent>,
+        action: AvailableActions,
+    ) -> anyhow::Result<()> {
+        context.layout_manager.change_workspace(context, action)?;
         Ok(())
     }
 }

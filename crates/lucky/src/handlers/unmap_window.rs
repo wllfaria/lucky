@@ -14,7 +14,8 @@ impl Handler for UnmapWindowHandler {
         if let Some(client) = screen_manager
             .clients()
             .values()
-            .find(|client| client.window.eq(&window) || client.frame.eq(&window))
+            // we only match on the client, as frames are only unmapped to hide a client
+            .find(|client| client.window.eq(&window))
         {
             let frame = client.frame;
             context

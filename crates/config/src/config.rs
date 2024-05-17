@@ -116,8 +116,6 @@ pub enum AvailableActions {
     Workspace8,
     /// Switches to workspace 9
     Workspace9,
-    /// Switches to workspace 0
-    Workspace0,
 }
 
 #[derive(Debug)]

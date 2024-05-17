@@ -5,10 +5,10 @@ use crate::{
     decorator::Decorator,
     event::EventContext,
     layout_manager::master_layout::TallLayout,
-    screen::{Client, WorkspaceLayout},
+    screen::{Client, Workspace, WorkspaceLayout},
     screen_manager::ScreenManager,
 };
-use config::Config;
+use config::{AvailableActions, Config};
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 use xcb::Xid;
 
@@ -48,6 +48,8 @@ impl LayoutManager {
         for screen in screen_manager.borrow().screens() {
             let workspace = screen.active_workspace();
             let screen_manager = screen_manager.borrow();
+
+            tracing::debug!("{screen:?} {workspace:?}");
 
             let visible_clients = screen_manager
                 .get_visible_screen_clients(screen)
@@ -214,6 +216,47 @@ impl LayoutManager {
 
         drop(screen_manager);
         self.display_screens(&context.screen_manager, context.decorator)?;
+
+        Ok(())
+    }
+
+    pub fn change_workspace(
+        &self,
+        context: &EventContext<xcb::x::KeyPressEvent>,
+        action: AvailableActions,
+    ) -> anyhow::Result<()> {
+        let mut screen_manager = context.screen_manager.borrow_mut();
+        let index = screen_manager.active_screen_idx();
+        let screen = screen_manager.screen_mut(index);
+
+        self.hide_workspace(screen.active_workspace())?;
+
+        match action {
+            AvailableActions::Workspace1 => screen.set_active_workspace(0),
+            AvailableActions::Workspace2 => screen.set_active_workspace(1),
+            AvailableActions::Workspace3 => screen.set_active_workspace(2),
+            AvailableActions::Workspace4 => screen.set_active_workspace(3),
+            AvailableActions::Workspace5 => screen.set_active_workspace(4),
+            AvailableActions::Workspace6 => screen.set_active_workspace(5),
+            AvailableActions::Workspace7 => screen.set_active_workspace(6),
+            AvailableActions::Workspace8 => screen.set_active_workspace(7),
+            AvailableActions::Workspace9 => screen.set_active_workspace(8),
+            _ => {}
+        }
+
+        drop(screen_manager);
+        self.display_screens(&context.screen_manager, context.decorator)?;
+
+        Ok(())
+    }
+
+    pub fn hide_workspace(&self, workspace: &Workspace) -> anyhow::Result<()> {
+        for client in workspace.clients() {
+            self.conn
+                .send_request(&xcb::x::UnmapWindow { window: *client });
+        }
+
+        self.conn.flush()?;
 
         Ok(())
     }

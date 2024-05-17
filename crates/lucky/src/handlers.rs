@@ -39,7 +39,6 @@ impl Handlers {
     }
 
     pub fn on_map_request(&mut self, context: EventContext<xcb::x::MapRequestEvent>) {
-        tracing::debug!("mapping a window");
         for handler in self.handlers.iter_mut() {
             handler.on_map_request(context.clone()).ok();
         }
