@@ -328,6 +328,231 @@ impl TallLayout {
         ActionHandledStatus::FullyHandled
     }
 
+    pub fn move_left(screen_manager: &mut ScreenManager) -> ActionHandledStatus {
+        let index = screen_manager.active_screen;
+        let screen = screen_manager.screen_mut(index);
+
+        // If the active workspace has no clients, we return as unhandled for the layout manager to
+        // decide what to do
+        if screen.active_workspace().clients().is_empty() {
+            return ActionHandledStatus::Unhandled;
+        }
+
+        // If the active workspace has no focused client, but has any number of clients, we
+        // select the last one, we cannot move a non-selected client
+        if screen.focused_client().is_none() {
+            let last_client = screen
+                .active_workspace()
+                .clients()
+                .last()
+                .copied()
+                .expect("tried to focus a client on an empty workspace");
+            screen
+                .active_workspace_mut()
+                .set_focused_client(Some(last_client));
+            return ActionHandledStatus::FullyHandled;
+        }
+
+        // if the active workspace has the leftmost client focused, we return to the layout
+        // manager as unhandled for it to decide what to do
+        let client = screen
+            .focused_client()
+            .expect("tried to get the focused client when there was none");
+
+        let is_first = screen
+            .active_workspace()
+            .clients()
+            .first()
+            .is_some_and(|focused| focused.eq(&client));
+
+        if is_first {
+            return ActionHandledStatus::Unhandled;
+        }
+
+        // since we are trying to move_left we swap with the first client on tall layouts
+        let index = screen
+            .active_workspace()
+            .clients()
+            .iter()
+            .position(|c| c.eq(&client))
+            .expect("workspace clients vector should include selected client");
+
+        screen.active_workspace_mut().clients_mut().swap(index, 0);
+
+        ActionHandledStatus::FullyHandled
+    }
+
+    pub fn move_down(screen_manager: &mut ScreenManager) -> ActionHandledStatus {
+        let index = screen_manager.active_screen;
+        let screen = screen_manager.screen_mut(index);
+
+        // If the active workspace has no clients, we return as unhandled for the layout manager to
+        // decide what to do
+        if screen.active_workspace().clients().is_empty() {
+            return ActionHandledStatus::Unhandled;
+        }
+
+        // If the active workspace has no focused client, but has any number of clients, we
+        // select the first one, we cannot move a non-selected client
+        if screen.focused_client().is_none() {
+            let first_client = screen
+                .active_workspace()
+                .clients()
+                .first()
+                .copied()
+                .expect("tried to focus a client on an empty workspace");
+            screen
+                .active_workspace_mut()
+                .set_focused_client(Some(first_client));
+            return ActionHandledStatus::FullyHandled;
+        }
+
+        // if the active workspace has the rightmost client focused, we return to the layout
+        // manager as unhandled for it to decide what to do
+        let client = screen
+            .focused_client()
+            .expect("tried to get the focused client when there was none");
+
+        let is_last = screen
+            .active_workspace()
+            .clients()
+            .last()
+            .is_some_and(|focused| focused.eq(&client));
+
+        if is_last {
+            return ActionHandledStatus::Unhandled;
+        }
+
+        // since we are trying to move_down we swap with the next client
+        let index = screen
+            .active_workspace()
+            .clients()
+            .iter()
+            .position(|c| c.eq(&client))
+            .expect("workspace clients vector should include selected client");
+
+        screen
+            .active_workspace_mut()
+            .clients_mut()
+            .swap(index, index.add(1));
+
+        ActionHandledStatus::FullyHandled
+    }
+
+    pub fn move_up(screen_manager: &mut ScreenManager) -> ActionHandledStatus {
+        let index = screen_manager.active_screen;
+        let screen = screen_manager.screen_mut(index);
+
+        // If the active workspace has no clients, we return as unhandled for the layout manager to
+        // decide what to do
+        if screen.active_workspace().clients().is_empty() {
+            return ActionHandledStatus::Unhandled;
+        }
+
+        // If the active workspace has no focused client, but has any number of clients, we
+        // select the last one, we cannot move a non-selected client
+        if screen.focused_client().is_none() {
+            let last_client = screen
+                .active_workspace()
+                .clients()
+                .last()
+                .copied()
+                .expect("tried to focus a client on an empty workspace");
+            screen
+                .active_workspace_mut()
+                .set_focused_client(Some(last_client));
+            return ActionHandledStatus::FullyHandled;
+        }
+
+        // if the active workspace has the leftmost client focused, we return to the layout
+        // manager as unhandled for it to decide what to do
+        let client = screen
+            .focused_client()
+            .expect("tried to get the focused client when there was none");
+
+        let is_first = screen
+            .active_workspace()
+            .clients()
+            .first()
+            .is_some_and(|focused| focused.eq(&client));
+
+        if is_first {
+            return ActionHandledStatus::Unhandled;
+        }
+
+        // since we are trying to move_up we swap with the previous client
+        let index = screen
+            .active_workspace()
+            .clients()
+            .iter()
+            .position(|c| c.eq(&client))
+            .expect("workspace clients vector should include selected client");
+
+        screen
+            .active_workspace_mut()
+            .clients_mut()
+            .swap(index, index.sub(1));
+
+        ActionHandledStatus::FullyHandled
+    }
+
+    pub fn move_right(screen_manager: &mut ScreenManager) -> ActionHandledStatus {
+        let index = screen_manager.active_screen;
+        let screen = screen_manager.screen_mut(index);
+
+        // If the active workspace has no clients, we return as unhandled for the layout manager to
+        // decide what to do
+        if screen.active_workspace().clients().is_empty() {
+            return ActionHandledStatus::Unhandled;
+        }
+
+        // If the active workspace has no focused client, but has any number of clients, we
+        // select the last one, we cannot move a non-selected client
+        if screen.focused_client().is_none() {
+            let last_client = screen
+                .active_workspace()
+                .clients()
+                .last()
+                .copied()
+                .expect("tried to focus a client on an empty workspace");
+            screen
+                .active_workspace_mut()
+                .set_focused_client(Some(last_client));
+            return ActionHandledStatus::FullyHandled;
+        }
+
+        // if the active workspace has the rightmost client focused, we return to the layout
+        // manager as unhandled for it to decide what to do
+        let client = screen
+            .focused_client()
+            .expect("tried to get the focused client when there was none");
+
+        let is_last = screen
+            .active_workspace()
+            .clients()
+            .last()
+            .is_some_and(|focused| focused.eq(&client));
+
+        if is_last {
+            return ActionHandledStatus::Unhandled;
+        }
+
+        // since we are trying to move_right we swap with next client
+        let index = screen
+            .active_workspace()
+            .clients()
+            .iter()
+            .position(|c| c.eq(&client))
+            .expect("workspace clients vector should include selected client");
+
+        screen
+            .active_workspace_mut()
+            .clients_mut()
+            .swap(index, index.add(1));
+
+        ActionHandledStatus::FullyHandled
+    }
+
     fn configure_window(conn: &Arc<xcb::Connection>, window: xcb::x::Window, client_pos: Position) {
         conn.send_request(&xcb::x::ConfigureWindow {
             window,

@@ -66,7 +66,7 @@ impl Keyboard {
                 .expect("should only have valid keys at this point")
                 as u8;
 
-            grab_key(conn.clone(), action.modifiers(), keycode, root);
+            grab_key(conn.clone(), action.modifiers().inner(), keycode, root);
         });
 
         config.borrow().commands().iter().for_each(|command| {

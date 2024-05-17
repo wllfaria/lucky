@@ -14,23 +14,20 @@ impl Handler for ActionHandler {
             .key_get_one_sym(context.event.detail().into());
 
         if let Ok(keysym) = Keysym::try_from(keysym) {
-            if let Some(action) = context
-                .config
-                .borrow()
-                .actions()
-                .iter()
-                .find(|action| action.key().eq(&keysym))
-            {
+            if let Some(action) = context.config.borrow().actions().iter().find(|action| {
+                action.key().eq(&keysym) && context.event.state().eq(&action.modifiers().into())
+            }) {
+                tracing::debug!("{action:?}");
                 match action.action() {
                     AvailableActions::Close => self.handle_close(&context)?,
                     AvailableActions::FocusLeft => self.handle_focus_left(&context)?,
                     AvailableActions::FocusDown => self.handle_focus_down(&context)?,
                     AvailableActions::FocusUp => self.handle_focus_up(&context)?,
                     AvailableActions::FocusRight => self.handle_focus_right(&context)?,
-                    AvailableActions::MoveLeft => todo!(),
-                    AvailableActions::MoveDown => todo!(),
-                    AvailableActions::MoveUp => todo!(),
-                    AvailableActions::MoveRight => todo!(),
+                    AvailableActions::MoveLeft => self.handle_move_left(&context)?,
+                    AvailableActions::MoveDown => self.handle_move_down(&context)?,
+                    AvailableActions::MoveUp => self.handle_move_up(&context)?,
+                    AvailableActions::MoveRight => self.handle_move_right(&context)?,
                     AvailableActions::Reload => context.action_tx.send(action.action())?,
                     AvailableActions::Workspace1 => todo!(),
                     AvailableActions::Workspace2 => todo!(),
@@ -90,6 +87,35 @@ impl ActionHandler {
         context: &EventContext<xcb::x::KeyPressEvent>,
     ) -> anyhow::Result<()> {
         context.layout_manager.focus_right(context)?;
+        Ok(())
+    }
+
+    fn handle_move_left(
+        &self,
+        context: &EventContext<xcb::x::KeyPressEvent>,
+    ) -> anyhow::Result<()> {
+        context.layout_manager.move_left(context)?;
+        Ok(())
+    }
+
+    fn handle_move_down(
+        &self,
+        context: &EventContext<xcb::x::KeyPressEvent>,
+    ) -> anyhow::Result<()> {
+        context.layout_manager.move_down(context)?;
+        Ok(())
+    }
+
+    fn handle_move_up(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
+        context.layout_manager.move_up(context)?;
+        Ok(())
+    }
+
+    fn handle_move_right(
+        &self,
+        context: &EventContext<xcb::x::KeyPressEvent>,
+    ) -> anyhow::Result<()> {
+        context.layout_manager.move_right(context)?;
         Ok(())
     }
 }

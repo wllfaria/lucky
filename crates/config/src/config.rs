@@ -1,3 +1,5 @@
+use xcb::x::KeyButMask;
+
 use crate::keysyms::Keysym;
 
 #[derive(Default, Debug)]
@@ -121,7 +123,7 @@ pub enum AvailableActions {
 #[derive(Debug)]
 pub struct Action {
     /// Bitflag modifiers required to execute this action, example: `0x0008` maps to `Mod1`
-    pub(crate) modifier: u32,
+    pub(crate) modifier: ActionModifier,
     /// The keysym used to describe this action, example: `XK_Return` matches with `Enter`
     pub(crate) key: Keysym,
     /// One of the possible actions to be performed by a key combination
@@ -138,12 +140,25 @@ pub struct Command {
     pub(crate) command: String,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct ActionModifier(u32);
+
+impl ActionModifier {
+    pub fn new(value: u32) -> Self {
+        Self(value)
+    }
+
+    pub fn inner(&self) -> u32 {
+        self.0
+    }
+}
+
 impl Action {
     pub fn key(&self) -> Keysym {
         self.key.clone()
     }
 
-    pub fn modifiers(&self) -> u32 {
+    pub fn modifiers(&self) -> ActionModifier {
         self.modifier
     }
 
@@ -163,5 +178,11 @@ impl Command {
 
     pub fn command(&self) -> &str {
         &self.command
+    }
+}
+
+impl From<ActionModifier> for KeyButMask {
+    fn from(value: ActionModifier) -> Self {
+        KeyButMask::from_bits(value.0).expect("action modifiers from config file must be valid")
     }
 }

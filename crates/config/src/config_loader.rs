@@ -1,6 +1,8 @@
+use std::ops::Add;
+
 use crate::{
     color_parser::Color,
-    config::{Action, AvailableActions, AvailableLeaderKeys, Command, Config},
+    config::{Action, ActionModifier, AvailableActions, AvailableLeaderKeys, Command, Config},
 };
 use serde::Deserialize;
 
@@ -159,10 +161,12 @@ impl TryFrom<UnresolvedActionEntry> for Action {
         Ok(Action {
             action: value.action.into(),
             key: value.key.as_str().try_into()?,
-            modifier: value
-                .modifiers
-                .into_iter()
-                .fold(0, |acc, modifier| acc + u32::from(modifier)),
+            modifier: ActionModifier::new(
+                value
+                    .modifiers
+                    .into_iter()
+                    .fold(0, |acc, modifier| acc.add(u32::from(modifier))),
+            ),
         })
     }
 }

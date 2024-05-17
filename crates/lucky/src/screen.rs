@@ -51,6 +51,10 @@ impl Workspace {
         &self.clients
     }
 
+    pub fn clients_mut(&mut self) -> &mut [xcb::x::Window] {
+        &mut self.clients
+    }
+
     pub fn set_focused_client(&mut self, client: Option<xcb::x::Window>) {
         self.focused_client = client
     }

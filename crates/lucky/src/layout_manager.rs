@@ -114,7 +114,6 @@ impl LayoutManager {
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
-            // on tall workspace, selecting right and bottom has the same effect.
             WorkspaceLayout::Tall => match TallLayout::focus_up(&mut screen_manager) {
                 ActionHandledStatus::Unhandled => {}
                 ActionHandledStatus::FullyHandled => {}
@@ -135,6 +134,78 @@ impl LayoutManager {
         match workspace.layout() {
             // on tall workspace, selecting right and bottom has the same effect.
             WorkspaceLayout::Tall => match TallLayout::focus_right_or_bottom(&mut screen_manager) {
+                ActionHandledStatus::Unhandled => {}
+                ActionHandledStatus::FullyHandled => {}
+            },
+        }
+
+        drop(screen_manager);
+        self.display_screens(&context.screen_manager, context.decorator)?;
+
+        Ok(())
+    }
+
+    pub fn move_left(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
+        let mut screen_manager = context.screen_manager.borrow_mut();
+        let screen = screen_manager.screen(screen_manager.active_screen);
+        let workspace = screen.active_workspace();
+
+        match workspace.layout() {
+            WorkspaceLayout::Tall => match TallLayout::move_left(&mut screen_manager) {
+                ActionHandledStatus::Unhandled => {}
+                ActionHandledStatus::FullyHandled => {}
+            },
+        }
+
+        drop(screen_manager);
+        self.display_screens(&context.screen_manager, context.decorator)?;
+
+        Ok(())
+    }
+
+    pub fn move_down(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
+        let mut screen_manager = context.screen_manager.borrow_mut();
+        let screen = screen_manager.screen(screen_manager.active_screen);
+        let workspace = screen.active_workspace();
+
+        match workspace.layout() {
+            WorkspaceLayout::Tall => match TallLayout::move_down(&mut screen_manager) {
+                ActionHandledStatus::Unhandled => {}
+                ActionHandledStatus::FullyHandled => {}
+            },
+        }
+
+        drop(screen_manager);
+        self.display_screens(&context.screen_manager, context.decorator)?;
+
+        Ok(())
+    }
+
+    pub fn move_up(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
+        let mut screen_manager = context.screen_manager.borrow_mut();
+        let screen = screen_manager.screen(screen_manager.active_screen);
+        let workspace = screen.active_workspace();
+
+        match workspace.layout() {
+            WorkspaceLayout::Tall => match TallLayout::move_up(&mut screen_manager) {
+                ActionHandledStatus::Unhandled => {}
+                ActionHandledStatus::FullyHandled => {}
+            },
+        }
+
+        drop(screen_manager);
+        self.display_screens(&context.screen_manager, context.decorator)?;
+
+        Ok(())
+    }
+
+    pub fn move_right(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
+        let mut screen_manager = context.screen_manager.borrow_mut();
+        let screen = screen_manager.screen(screen_manager.active_screen);
+        let workspace = screen.active_workspace();
+
+        match workspace.layout() {
+            WorkspaceLayout::Tall => match TallLayout::move_right(&mut screen_manager) {
                 ActionHandledStatus::Unhandled => {}
                 ActionHandledStatus::FullyHandled => {}
             },
