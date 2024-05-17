@@ -33,15 +33,15 @@ pub struct Lucky {
 }
 
 impl Lucky {
-    pub fn new() -> Self {
+    pub fn new() -> anyhow::Result<Self> {
         let (conn, _) = xcb::Connection::connect(None).expect("failed to initialize self.conn to the X server. Check the DISPLAY environment variable");
         let conn = Arc::new(conn);
         let config = Rc::new(RefCell::new(config::load_config()));
         let root = Self::setup(&conn);
         let screen_positions = Self::get_monitors(&conn, root);
 
-        Lucky {
-            keyboard: Keyboard::new(&conn, config.clone(), root),
+        Ok(Lucky {
+            keyboard: Keyboard::new(&conn, config.clone(), root)?,
             layout_manager: LayoutManager::new(conn.clone(), config.clone()),
             decorator: Decorator::new(conn.clone(), config.clone()),
             atoms: Atoms::new(&conn),
@@ -53,7 +53,7 @@ impl Lucky {
 
             conn,
             config,
-        }
+        })
     }
 
     pub fn run(mut self) {

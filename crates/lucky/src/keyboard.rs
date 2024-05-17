@@ -12,7 +12,7 @@ impl Keyboard {
         conn: &Arc<xcb::Connection>,
         config: Rc<RefCell<Config>>,
         root: xcb::x::Window,
-    ) -> Self {
+    ) -> anyhow::Result<Self> {
         conn.wait_for_reply(conn.send_request(&xcb::xkb::UseExtension {
             wanted_major: xkb::x11::MIN_MAJOR_XKB_VERSION,
             wanted_minor: xkb::x11::MIN_MINOR_XKB_VERSION,
@@ -60,25 +60,29 @@ impl Keyboard {
             }
         });
 
-        config.borrow().actions().iter().for_each(|action| {
-            let keycode = *keycode_map
-                .get(action.key().canonical_name())
-                .expect("should only have valid keys at this point")
-                as u8;
-
+        for action in config.borrow().actions().iter() {
+            let keycode = match keycode_map.get(action.key().canonical_name()) {
+                Some(e) => *e as u8,
+                None => {
+                    tracing::error!("failed to grab key: {}", action.key());
+                    anyhow::bail!(format!("failed to grab key: {}", action.key()))
+                }
+            };
             grab_key(conn.clone(), action.modifiers().inner(), keycode, root);
-        });
+        }
 
-        config.borrow().commands().iter().for_each(|command| {
-            let keycode = *keycode_map
-                .get(command.key().canonical_name())
-                .expect("should only have valid keys at this point")
-                as u8;
-
+        for command in config.borrow().commands().iter() {
+            let keycode = match keycode_map.get(command.key().canonical_name()) {
+                Some(e) => *e as u8,
+                None => {
+                    tracing::error!("failed to grab key: {}", command.key());
+                    anyhow::bail!(format!("failed to grab key: {}", command.key()))
+                }
+            };
             grab_key(conn.clone(), command.modifiers(), keycode, root);
-        });
+        }
 
-        Keyboard { state }
+        Ok(Keyboard { state })
     }
 }
 
