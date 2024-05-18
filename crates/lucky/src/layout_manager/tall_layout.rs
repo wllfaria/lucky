@@ -1,5 +1,6 @@
 use crate::{
     decorator::Decorator,
+    layout_manager::ActionHandledStatus,
     screen::{Client, Screen},
     screen_manager::{Position, ScreenManager},
 };
@@ -10,8 +11,6 @@ use std::{
     rc::Rc,
     sync::Arc,
 };
-
-use super::ActionHandledStatus;
 
 pub struct TallLayout {}
 
@@ -34,14 +33,14 @@ impl TallLayout {
 
         for (i, client) in clients.iter().enumerate() {
             match decorator.unfocus_client(client) {
-                Ok(_) => tracing::info!("displayed client {:?}", client),
+                Ok(_) => tracing::info!("removed focus from client: {:?}", client),
                 Err(e) => {
                     return Err(e);
                 }
             }
             match i {
-                0 => Self::display_master_client(conn, client, screen, master_width, config),
-                _ => Self::display_sibling_client(
+                0 => Self::display_main_client(conn, client, screen, master_width, config),
+                _ => Self::display_side_client(
                     conn,
                     client,
                     screen,
@@ -66,11 +65,10 @@ impl TallLayout {
             }
         }
 
-        conn.flush()?;
         Ok(())
     }
 
-    fn display_master_client(
+    fn display_main_client(
         conn: &Arc<xcb::Connection>,
         client: &Client,
         screen: &Screen,
@@ -94,8 +92,8 @@ impl TallLayout {
             conn,
             client.window,
             Position::new(
-                0,
-                0,
+                screen.position().x,
+                screen.position().y,
                 master_width.sub(config.borrow().border_width() as u32),
                 screen
                     .position()
@@ -112,7 +110,7 @@ impl TallLayout {
         });
     }
 
-    fn display_sibling_client(
+    fn display_side_client(
         conn: &Arc<xcb::Connection>,
         client: &Client,
         screen: &Screen,
@@ -130,8 +128,11 @@ impl TallLayout {
             conn,
             client.frame,
             Position::new(
-                master_width as i32,
-                height.mul(sibling_index as u32) as i32,
+                screen.position().x.add(master_width as i32),
+                screen
+                    .position()
+                    .y
+                    .add(height.mul(sibling_index as u32) as i32),
                 width.sub(config.borrow().border_width().mul(2) as u32),
                 height.sub(config.borrow().border_width().mul(2) as u32),
             ),

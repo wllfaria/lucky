@@ -23,7 +23,11 @@ pub struct Config {
     /// color to be used by the active client border
     pub(crate) active_border_color: u32,
     /// Altomatically focus newly created clients
+    /// default: true
     pub(crate) focus_new_clients: bool,
+    /// wether or not the focus should follow the cursor, focusing hovered clients
+    /// default: true
+    pub(crate) focus_follow_mouse: bool,
 }
 
 impl Config {
@@ -55,6 +59,10 @@ impl Config {
         self.focus_new_clients
     }
 
+    pub fn focus_follow_mouse(&self) -> bool {
+        self.focus_follow_mouse
+    }
+
     pub fn update(&mut self, other: Config) {
         self.leader = other.leader;
         self.actions = other.actions;
@@ -64,6 +72,7 @@ impl Config {
         self.border_color = other.border_color;
         self.active_border_color = other.active_border_color;
         self.focus_new_clients = other.focus_new_clients;
+        self.focus_follow_mouse = other.focus_follow_mouse;
     }
 }
 
@@ -73,6 +82,7 @@ impl Default for Config {
             active_border_color: 0x2D4F67,
             border_color: 0x252525,
             focus_new_clients: true,
+            focus_follow_mouse: true,
             border_width: 4,
             workspaces: 9,
             leader: AvailableLeaderKeys::Mod1,

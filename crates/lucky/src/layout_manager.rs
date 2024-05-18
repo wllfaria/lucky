@@ -1,10 +1,10 @@
-mod master_layout;
+mod tall_layout;
 
 use crate::{
     atoms::Atoms,
     decorator::Decorator,
     event::EventContext,
-    layout_manager::master_layout::TallLayout,
+    layout_manager::tall_layout::TallLayout,
     screen::{Client, Workspace, WorkspaceLayout},
     screen_manager::ScreenManager,
 };
@@ -55,6 +55,11 @@ impl LayoutManager {
                 .into_iter()
                 .filter(|client| client.visible)
                 .collect::<Vec<_>>();
+
+            if visible_clients.is_empty() {
+                self.hide_workspace(workspace)?;
+                continue;
+            }
 
             let focused_client = screen_manager.get_focused_client();
 
@@ -255,8 +260,6 @@ impl LayoutManager {
                 .send_request(&xcb::x::UnmapWindow { window: *client });
         }
 
-        self.conn.flush()?;
-
         Ok(())
     }
 
@@ -304,14 +307,10 @@ impl LayoutManager {
             self.conn.send_request(&xcb::x::DestroyWindow {
                 window: client.frame,
             });
-
-            self.conn.flush()?;
         } else {
             self.conn.send_request(&xcb::x::DestroyWindow {
                 window: client.frame,
             });
-
-            self.conn.flush()?;
         }
 
         Ok(())

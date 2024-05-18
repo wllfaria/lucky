@@ -75,7 +75,6 @@ impl Decorator {
             window: client.frame,
             value_list: &[xcb::x::Cw::BorderPixel(self.config.borrow().border_color())],
         });
-        self.conn.flush()?;
         Ok(())
     }
 
@@ -91,7 +90,6 @@ impl Decorator {
             focus: client.window,
             revert_to: xcb::x::InputFocus::Parent,
         });
-        self.conn.flush()?;
 
         Ok(())
     }

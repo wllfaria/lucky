@@ -239,8 +239,6 @@ fn poll_events(conn: Arc<xcb::Connection>, event_tx: Sender<XEvent>) {
                     }
                 }
                 xcb::Event::X(xcb::x::Event::EnterNotify(e)) => {
-                    // TODO: when entering the window we should focus it if `focus_on_hover` is
-                    // enabled
                     if event_tx.send(XEvent::EnterNotify(e)).is_err() {
                         tracing::debug!("failed to send event through channel");
                         std::process::abort();
@@ -254,10 +252,10 @@ fn poll_events(conn: Arc<xcb::Connection>, event_tx: Sender<XEvent>) {
                 }
                 xcb::Event::X(xcb::x::Event::ConfigureRequest(_)) => {}
                 xcb::Event::X(xcb::x::Event::PropertyNotify(_)) => {}
-                _ => (),
+                e => tracing::error!("{e:?}"),
             };
         };
-        conn.flush().unwrap();
+        conn.flush().expect("failed to flush the connection");
     }
 }
 

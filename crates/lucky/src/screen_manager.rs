@@ -94,13 +94,43 @@ impl ScreenManager {
                 workspace: self.screens[self.active_screen].active_workspace().id(),
             },
         );
+        tracing::debug!("inserting client {frame:?} on clients");
+        tracing::debug!("{:#?}", self.screens);
 
         let screen = &mut self.screens[self.active_screen];
         let workspace = screen.active_workspace_mut();
         workspace.new_client(frame);
+        tracing::debug!("{:#?}", workspace);
 
         if self.config.borrow().focus_new_clients() || workspace.clients().len().eq(&1) {
             workspace.set_focused_client(Some(frame));
+        }
+    }
+
+    /// Directly focus a client on any of the screens;
+    ///
+    /// This is mainly used together with `focus_follow_mouse` configuration
+    /// which allows for windows to be focused in a non-linear maner
+    ///
+    /// Window here is the window that triggered the "EnterNotify" event, which
+    /// can be a frame or a client window, so we have to check both
+    pub fn focus_client(&mut self, window: xcb::x::Window) {
+        match self
+            .clients
+            .values()
+            .find(|&&client| client.window.eq(&window) || client.frame.eq(&window))
+        {
+            Some(client) => {
+                tracing::debug!("focusing client: {client:?}");
+                self.screens.iter().for_each(|screen| {
+                    let workspace = screen.active_workspace_mut();
+                    workspace
+                        .clients()
+                        .contains(&client.frame)
+                        .then(|| workspace.set_focused_client(Some(client.frame)));
+                });
+            }
+            None => tracing::error!("tried to select a client that was not on our list"),
         }
     }
 
