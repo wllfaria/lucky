@@ -118,11 +118,11 @@ impl ScreenManager {
         match self
             .clients
             .values()
-            .find(|&&client| client.window.eq(&window) || client.frame.eq(&window))
+            .find(|client| client.window.eq(&window) || client.frame.eq(&window))
         {
             Some(client) => {
                 tracing::debug!("focusing client: {client:?}");
-                self.screens.iter().for_each(|screen| {
+                self.screens.iter_mut().for_each(|screen| {
                     let workspace = screen.active_workspace_mut();
                     workspace
                         .clients()
