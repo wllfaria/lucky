@@ -139,7 +139,11 @@ impl TallLayout {
                 height.sub(border_double),
             ),
         );
-        Self::configure_window(conn, client.window, Position::new(0, 0, width, height));
+        Self::configure_window(
+            conn,
+            client.window,
+            Position::new(0, 0, width.sub(border_double), height.sub(border_double)),
+        );
         conn.send_request(&xcb::x::MapWindow {
             window: client.window,
         });
