@@ -1,6 +1,6 @@
 use crate::screen::{Client, Screen};
 use config::Config;
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, ops::Add, rc::Rc};
 
 #[derive(Debug)]
 pub struct Position {
@@ -18,6 +18,15 @@ impl Position {
             width,
             height,
         }
+    }
+}
+
+impl std::fmt::Display for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "x: {}, y: {}, width: {}, height: {}",
+            self.x, self.y, self.width, self.height
+        ))
     }
 }
 
@@ -95,12 +104,10 @@ impl ScreenManager {
             },
         );
         tracing::debug!("inserting client {frame:?} on clients");
-        tracing::debug!("{:#?}", self.screens);
 
         let screen = &mut self.screens[self.active_screen];
         let workspace = screen.active_workspace_mut();
         workspace.new_client(frame);
-        tracing::debug!("{:#?}", workspace);
 
         if self.config.borrow().focus_new_clients() || workspace.clients().len().eq(&1) {
             workspace.set_focused_client(Some(frame));
@@ -164,4 +171,21 @@ impl ScreenManager {
             })
             .collect::<Vec<&Client>>()
     }
+
+    pub fn maybe_switch_screen(&mut self, pointer: xcb::x::QueryPointerReply) {
+        let (cursor_x, cursor_y) = (pointer.root_x(), pointer.root_y());
+
+        self.screens.iter().enumerate().for_each(|(idx, screen)| {
+            if is_cursor_inside(cursor_x.into(), cursor_y.into(), screen.position()) {
+                self.active_screen = idx;
+            }
+        });
+    }
+}
+
+fn is_cursor_inside(x: i32, y: i32, position: &Position) -> bool {
+    x.ge(&position.x)
+        && x.lt(&position.x.add(position.width as i32))
+        && y.ge(&position.y)
+        && y.lt(&position.y.add(position.height as i32))
 }

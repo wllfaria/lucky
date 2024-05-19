@@ -24,8 +24,9 @@ impl TallLayout {
         decorator: &Decorator,
     ) -> anyhow::Result<()> {
         let visible_clients_len = clients.len();
+        tracing::debug!("displaying window with {visible_clients_len} visible clients");
 
-        let master_width = if visible_clients_len.eq(&1) {
+        let main_width = if visible_clients_len.eq(&1) {
             screen.position().width
         } else {
             screen.position().width.div(2)
@@ -39,28 +40,28 @@ impl TallLayout {
                 }
             }
             match i {
-                0 => Self::display_main_client(conn, client, screen, master_width, config),
+                0 => Self::display_main_client(conn, client, screen, main_width, config),
                 _ => Self::display_side_client(
                     conn,
                     client,
                     screen,
                     i,
                     visible_clients_len,
-                    master_width,
+                    main_width,
                     config,
                 ),
             }
         }
 
+        tracing::debug!("mapped visible clients");
+
         if let Some(focused_client) = focused_client {
-            let client = clients
-                .iter()
-                .find(|&&client| client.eq(focused_client))
-                .expect("focused client must exist within all the clients");
-            if focused_client.eq(client) {
-                match decorator.focus_client(client) {
-                    Ok(_) => tracing::info!("focused client {:?}", client),
-                    Err(e) => return Err(e),
+            if let Some(client) = clients.iter().find(|&&client| client.eq(focused_client)) {
+                if focused_client.eq(client) {
+                    match decorator.focus_client(client) {
+                        Ok(_) => tracing::info!("focused client {:?}", client),
+                        Err(e) => return Err(e),
+                    }
                 }
             }
         }
@@ -72,42 +73,44 @@ impl TallLayout {
         conn: &Arc<xcb::Connection>,
         client: &Client,
         screen: &Screen,
-        master_width: u32,
+        main_width: u32,
         config: &Rc<RefCell<Config>>,
     ) {
-        Self::configure_window(
-            conn,
-            client.frame,
-            Position::new(
-                0,
-                0,
-                master_width.sub(config.borrow().border_width().mul(2) as u32),
-                screen
-                    .position()
-                    .height
-                    .sub(config.borrow().border_width().mul(2) as u32),
-            ),
+        let border_double = config.borrow().border_width().mul(2) as u32;
+        tracing::debug!("{screen:?}");
+        let frame_position = Position::new(
+            screen.position().x,
+            screen.position().y,
+            main_width.sub(border_double),
+            screen.position().height.sub(border_double),
         );
-        Self::configure_window(
-            conn,
-            client.window,
-            Position::new(
-                screen.position().x,
-                screen.position().y,
-                master_width.sub(config.borrow().border_width() as u32),
-                screen
-                    .position()
-                    .height
-                    .sub(config.borrow().border_width() as u32),
-            ),
+        let client_position = Position::new(
+            0,
+            0,
+            main_width.sub(config.borrow().border_width() as u32),
+            screen
+                .position()
+                .height
+                .sub(config.borrow().border_width() as u32),
         );
+
+        tracing::debug!(
+            "displaying main client with frame at: {frame_position}, client at: {client_position}"
+        );
+
+        Self::configure_window(conn, client.frame, frame_position);
+        Self::configure_window(conn, client.window, client_position);
+
+        tracing::debug!("configured window and frame");
 
         conn.send_request(&xcb::x::MapWindow {
             window: client.window,
         });
+        tracing::debug!("mapped frame");
         conn.send_request(&xcb::x::MapWindow {
             window: client.frame,
         });
+        tracing::debug!("mapped client");
     }
 
     fn display_side_client(
@@ -116,25 +119,24 @@ impl TallLayout {
         screen: &Screen,
         index: usize,
         total: usize,
-        master_width: u32,
+        main_width: u32,
         config: &Rc<RefCell<Config>>,
     ) {
-        let width = screen.position().width.sub(master_width);
+        let width = screen.position().width.sub(main_width);
         let total_siblings = total.sub(1);
-        let height = screen.position().height.div(total_siblings as u32);
+        let height = screen.position().height.div_ceil(total_siblings as u32);
         let sibling_index = index.sub(1);
+        let border_double = config.borrow().border_width().mul(2) as u32;
+        let position_y = height.mul(sibling_index as u32) as i32;
 
         Self::configure_window(
             conn,
             client.frame,
             Position::new(
-                screen.position().x.add(master_width as i32),
-                screen
-                    .position()
-                    .y
-                    .add(height.mul(sibling_index as u32) as i32),
-                width.sub(config.borrow().border_width().mul(2) as u32),
-                height.sub(config.borrow().border_width().mul(2) as u32),
+                screen.position().x.add(main_width as i32),
+                screen.position().y.add(position_y),
+                width.sub(border_double),
+                height.sub(border_double),
             ),
         );
         Self::configure_window(conn, client.window, Position::new(0, 0, width, height));

@@ -9,12 +9,13 @@ impl Handler for HoverHandler {
         &mut self,
         context: EventContext<xcb::x::EnterNotifyEvent>,
     ) -> anyhow::Result<()> {
-        let window = context.event.event();
-        context.screen_manager.borrow_mut().focus_client(window);
-
-        context
-            .layout_manager
-            .display_screens(&context.screen_manager, context.decorator)?;
+        if context.config.borrow().focus_follow_mouse() {
+            let window = context.event.event();
+            context.screen_manager.borrow_mut().focus_client(window);
+            context
+                .layout_manager
+                .display_screens(&context.screen_manager, context.decorator)?;
+        }
 
         Ok(())
     }

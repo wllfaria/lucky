@@ -35,45 +35,50 @@ impl Handlers {
     pub fn on_key_press(&mut self, context: EventContext<xcb::x::KeyPressEvent>) {
         for handler in self.handlers.iter_mut() {
             match handler.on_key_press(context.clone()) {
-                Ok(_) => tracing::debug!("key press handled correctly"),
+                Ok(_) => {}
                 Err(e) => tracing::error!("critical error happened: {e:?}"),
             }
         }
+        tracing::debug!("key press handled correctly");
     }
 
     pub fn on_map_request(&mut self, context: EventContext<xcb::x::MapRequestEvent>) {
         for handler in self.handlers.iter_mut() {
             match handler.on_map_request(context.clone()) {
-                Ok(_) => tracing::debug!("map request handled correctly"),
+                Ok(_) => {}
                 Err(e) => tracing::error!("critical error happened: {e:?}"),
             }
         }
+        tracing::debug!("map request handled correctly");
     }
 
     pub fn on_destroy_notify(&mut self, context: EventContext<xcb::x::DestroyNotifyEvent>) {
         for handler in self.handlers.iter_mut() {
             match handler.on_destroy_notify(context.clone()) {
-                Ok(_) => tracing::debug!("destroy notify handled correctly"),
+                Ok(_) => {}
                 Err(e) => tracing::error!("critical error happened: {e:?}"),
             }
         }
+        tracing::debug!("destroy notify handled correctly");
     }
 
     pub fn on_enter_notify(&mut self, context: EventContext<xcb::x::EnterNotifyEvent>) {
         for handler in self.handlers.iter_mut() {
             match handler.on_enter_notify(context.clone()) {
-                Ok(_) => tracing::debug!("enter notify handled correctly"),
+                Ok(_) => {}
                 Err(e) => tracing::error!("critical error happened: {e:?}"),
             }
         }
+        tracing::debug!("enter notify handled correctly");
     }
 
     pub fn on_unmap_notify(&mut self, context: EventContext<xcb::x::UnmapNotifyEvent>) {
         for handler in self.handlers.iter_mut() {
             match handler.on_unmap_notify(context.clone()) {
-                Ok(_) => tracing::debug!("unmap handled correctly"),
+                Ok(_) => {}
                 Err(e) => tracing::error!("critical error happened: {e:?}"),
             }
         }
+        tracing::debug!("unmap handled correctly");
     }
 }

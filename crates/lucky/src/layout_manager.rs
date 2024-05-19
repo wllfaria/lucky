@@ -278,13 +278,19 @@ impl LayoutManager {
             long_offset: 0,
             long_length: 1024,
         });
-        let protocols = self.conn.wait_for_reply(cookie)?;
-        let protocol_atoms: &[xcb::x::Atom] = protocols.value();
+        let supports_wm_delete_window = match self.conn.wait_for_reply(cookie) {
+            Ok(protocols) => {
+                let protocol_atoms: &[xcb::x::Atom] = protocols.value();
+                protocol_atoms
+                    .iter()
+                    .any(|&atom| atom == atoms.wm_delete_window)
+            }
+            // if we fail to fetch the property from the client for some reason, we just destroy
+            // the frame, as we don't want to have a dirty state
+            Err(_) => false,
+        };
 
-        if protocol_atoms
-            .iter()
-            .any(|&atom| atom == atoms.wm_delete_window)
-        {
+        if supports_wm_delete_window {
             let event = xcb::x::ClientMessageEvent::new(
                 client.window,
                 atoms.wm_protocols,

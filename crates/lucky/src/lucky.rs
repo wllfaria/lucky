@@ -30,6 +30,7 @@ pub struct Lucky {
     atoms: Atoms,
     layout_manager: LayoutManager,
     decorator: Decorator,
+    last_pointer_position: (i16, i16),
 }
 
 impl Lucky {
@@ -53,6 +54,7 @@ impl Lucky {
 
             conn,
             config,
+            last_pointer_position: (0, 0),
         })
     }
 
@@ -72,7 +74,7 @@ impl Lucky {
                     .expect("failed to redraw the screen");
             }
 
-            if let Ok(event) = event_rx.recv() {
+            if let Ok(event) = event_rx.try_recv() {
                 match event {
                     XEvent::KeyPress(event) => self.handlers.on_key_press(EventContext {
                         event,
@@ -132,6 +134,28 @@ impl Lucky {
                     XEvent::PropertyNotify(_) => {}
                     XEvent::ConfigureRequest(_) => todo!(),
                 }
+
+                self.conn.flush().expect("failed to flush the connection");
+            }
+
+            let pointer_cookie = self.conn.send_request(&xcb::x::QueryPointer {
+                window: self
+                    .conn
+                    .get_setup()
+                    .roots()
+                    .next()
+                    .expect("should have at least one screen")
+                    .root(),
+            });
+
+            if let Ok(pointer_reply) = self.conn.wait_for_reply(pointer_cookie) {
+                let pointer_position = (pointer_reply.root_x(), pointer_reply.root_y());
+                if pointer_position.ne(&self.last_pointer_position) {
+                    self.last_pointer_position = pointer_position;
+                    self.screen_manager
+                        .borrow_mut()
+                        .maybe_switch_screen(pointer_reply);
+                }
             }
         }
     }
@@ -178,13 +202,13 @@ impl Lucky {
         }))
         .expect("failed to subscribe for substructure redirection");
 
-        conn.check_request(conn.send_request_checked(&ChangeProperty {
+        conn.send_and_check_request(&ChangeProperty {
             window: root,
             mode: x::PropMode::Replace,
             r#type: xcb::x::ATOM_STRING,
             data: b"LuckyWM",
             property: xcb::x::ATOM_WM_NAME,
-        }))
+        })
         .expect("failed to set window manager name");
 
         root
@@ -259,6 +283,7 @@ fn poll_events(conn: Arc<xcb::Connection>, event_tx: Sender<XEvent>) {
     }
 }
 
+#[derive(Debug)]
 pub enum XEvent {
     KeyPress(xcb::x::KeyPressEvent),
     MapRequest(xcb::x::MapRequestEvent),

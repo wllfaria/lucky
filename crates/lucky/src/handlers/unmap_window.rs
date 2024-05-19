@@ -14,7 +14,8 @@ impl Handler for UnmapWindowHandler {
         if let Some(client) = screen_manager
             .clients()
             .values()
-            // we only match on the client, as frames are only unmapped to hide a client
+            // we only match on the client window, as the frames unmap requests means that
+            // we are simply hiding that client
             .find(|client| client.window.eq(&window))
         {
             let frame = client.frame;
@@ -23,10 +24,11 @@ impl Handler for UnmapWindowHandler {
                 .close_client(client.clone(), context.atoms)
             {
                 Ok(_) => tracing::debug!("succesfully unmapped window {:?}", window),
-                Err(e) => {
-                    tracing::error!("failed to unmap client {:?}", window);
-                    return Err(e);
-                }
+                // some softwares close their clients without waiting for the window manager
+                // thus making this fails, it is fine to keep going even though we coudlnt
+                // kill the client;
+                // if it don't exist on the X server it should not exist on our state
+                Err(_) => tracing::error!("failed to unmap client {:?}", window),
             }
 
             drop(screen_manager);
