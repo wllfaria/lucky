@@ -38,6 +38,7 @@ impl Handler for ActionHandler {
                     Workspace7 => self.handle_change_workspace(&context, action.action())?,
                     Workspace8 => self.handle_change_workspace(&context, action.action())?,
                     Workspace9 => self.handle_change_workspace(&context, action.action())?,
+                    Fullscreen => self.handle_fullscreen(&context)?,
                 }
             }
         }
@@ -256,6 +257,13 @@ impl ActionHandler {
                 return Err(e);
             }
         }
+        Ok(())
+    }
+
+    fn handle_fullscreen(
+        &self,
+        _context: &EventContext<xcb::x::KeyPressEvent>,
+    ) -> anyhow::Result<()> {
         Ok(())
     }
 }

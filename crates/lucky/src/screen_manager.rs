@@ -86,6 +86,10 @@ impl ScreenManager {
         self.active_screen
     }
 
+    pub fn set_active_screen(&mut self, active_screen_idx: usize) {
+        self.active_screen = active_screen_idx
+    }
+
     /// Creates a new client on the active screen and active workspace on given screen
     ///
     /// When `focus_new_clients` is true on configuration, we also set the focus to the newly

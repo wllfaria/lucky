@@ -222,10 +222,15 @@ impl Lucky {
             }))
             .expect("failed to get monitors");
 
-        total_screens
+        let mut screens = total_screens
             .monitors()
             .map(Into::into)
-            .collect::<Vec<Position>>()
+            .collect::<Vec<Position>>();
+
+        // we sort by x so its easier to know which monitors are to the left and right
+        screens.sort_by(|a, b| a.x.cmp(&b.x));
+
+        screens
     }
 }
 

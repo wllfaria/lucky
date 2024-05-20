@@ -1,6 +1,6 @@
 # LuckyWM
 
-<img src=".extras/showcase-one.png" height="432" width="640">
+<img src=".extras/showcase-one.png" height="432">
 
 Minimal, flexible and customizable, window manager for X.
 

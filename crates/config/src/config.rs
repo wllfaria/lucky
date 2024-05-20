@@ -141,6 +141,8 @@ pub enum AvailableActions {
     Workspace8,
     /// Switches to workspace 9
     Workspace9,
+    /// set focused client to be fullscreen
+    Fullscreen,
 }
 
 #[derive(Debug)]

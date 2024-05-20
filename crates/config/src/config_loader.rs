@@ -69,6 +69,7 @@ enum UnresolvedAction {
     Workspace7,
     Workspace8,
     Workspace9,
+    Fullscreen,
 }
 
 pub enum ConfigError {
@@ -216,6 +217,7 @@ impl From<UnresolvedAction> for AvailableActions {
             UnresolvedAction::Workspace7 => AvailableActions::Workspace7,
             UnresolvedAction::Workspace8 => AvailableActions::Workspace8,
             UnresolvedAction::Workspace9 => AvailableActions::Workspace9,
+            UnresolvedAction::Fullscreen => AvailableActions::Fullscreen,
         }
     }
 }

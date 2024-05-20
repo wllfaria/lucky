@@ -9,7 +9,12 @@ use crate::{
     screen_manager::ScreenManager,
 };
 use config::{AvailableActions, Config};
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{
+    cell::RefCell,
+    ops::{Add, Sub},
+    rc::Rc,
+    sync::Arc,
+};
 use xcb::Xid;
 
 #[derive(Debug, PartialEq)]
@@ -80,14 +85,26 @@ impl LayoutManager {
 
     pub fn focus_left(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen_idx());
+        let active_screen_idx = screen_manager.active_screen_idx();
+        let screen = screen_manager.screen(active_screen_idx);
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
-            WorkspaceLayout::Tall => match TallLayout::focus_left(&mut screen_manager) {
-                ActionHandledStatus::Unhandled => {}
-                ActionHandledStatus::FullyHandled => {}
-            },
+            WorkspaceLayout::Tall => {
+                if let ActionHandledStatus::Unhandled = TallLayout::focus_left(&mut screen_manager)
+                {
+                    if active_screen_idx.gt(&0) {
+                        let left_index = active_screen_idx.sub(1);
+                        screen_manager.set_active_screen(left_index);
+                        // here we dont care about the result of this operations, if there is no
+                        // client to focus to the left, we just let it as is
+                        //
+                        // since we are moving screens, we always select the rightmost client of
+                        // the new screen
+                        _ = TallLayout::focus_last(&mut screen_manager);
+                    }
+                }
+            }
         }
 
         drop(screen_manager);
@@ -98,15 +115,29 @@ impl LayoutManager {
 
     pub fn focus_down(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen_idx());
+        let active_screen_idx = screen_manager.active_screen_idx();
+        let screen = screen_manager.screen(active_screen_idx);
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
             // on tall workspace, selecting right and bottom has the same effect.
-            WorkspaceLayout::Tall => match TallLayout::focus_right_or_bottom(&mut screen_manager) {
-                ActionHandledStatus::Unhandled => {}
-                ActionHandledStatus::FullyHandled => {}
-            },
+            WorkspaceLayout::Tall => {
+                if let ActionHandledStatus::Unhandled =
+                    TallLayout::focus_right_or_bottom(&mut screen_manager)
+                {
+                    let total_screens = screen_manager.screens().len().sub(1);
+                    if total_screens.gt(&active_screen_idx) {
+                        let left_index = active_screen_idx.add(1);
+                        screen_manager.set_active_screen(left_index);
+                        // here we dont care about the result of this operations, if there is no
+                        // client to focus down, we just let it as is
+                        //
+                        // since we are moving screens, we always select the leftmost client of
+                        // the new screen
+                        _ = TallLayout::focus_first(&mut screen_manager);
+                    }
+                }
+            }
         }
 
         drop(screen_manager);
@@ -117,14 +148,26 @@ impl LayoutManager {
 
     pub fn focus_up(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen_idx());
+        let active_screen_idx = screen_manager.active_screen_idx();
+        let screen = screen_manager.screen(active_screen_idx);
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
-            WorkspaceLayout::Tall => match TallLayout::focus_up(&mut screen_manager) {
-                ActionHandledStatus::Unhandled => {}
-                ActionHandledStatus::FullyHandled => {}
-            },
+            WorkspaceLayout::Tall => {
+                if let ActionHandledStatus::Unhandled = TallLayout::focus_up(&mut screen_manager) {
+                    // im still thinking about this, should focusing up change screens?
+                    if active_screen_idx.gt(&0) {
+                        let left_index = active_screen_idx.sub(1);
+                        screen_manager.set_active_screen(left_index);
+                        // here we dont care about the result of this operations, if there is no
+                        // client to focus up, we just let it as is
+                        //
+                        // since we are moving screens, we always select the rightmost client of
+                        // the new screen
+                        _ = TallLayout::focus_last(&mut screen_manager);
+                    }
+                }
+            }
         }
 
         drop(screen_manager);
@@ -135,15 +178,29 @@ impl LayoutManager {
 
     pub fn focus_right(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen_idx());
+        let active_screen_idx = screen_manager.active_screen_idx();
+        let screen = screen_manager.screen(active_screen_idx);
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
             // on tall workspace, selecting right and bottom has the same effect.
-            WorkspaceLayout::Tall => match TallLayout::focus_right_or_bottom(&mut screen_manager) {
-                ActionHandledStatus::Unhandled => {}
-                ActionHandledStatus::FullyHandled => {}
-            },
+            WorkspaceLayout::Tall => {
+                if let ActionHandledStatus::Unhandled =
+                    TallLayout::focus_right_or_bottom(&mut screen_manager)
+                {
+                    let total_screens = screen_manager.screens().len().sub(1);
+                    if total_screens.gt(&active_screen_idx) {
+                        let left_index = active_screen_idx.add(1);
+                        screen_manager.set_active_screen(left_index);
+                        // here we dont care about the result of this operations, if there is no
+                        // client to focus right, we just let it as is
+                        //
+                        // since we are moving screens, we always select the leftmost client of
+                        // the new screen
+                        _ = TallLayout::focus_first(&mut screen_manager);
+                    }
+                }
+            }
         }
 
         drop(screen_manager);
@@ -154,13 +211,16 @@ impl LayoutManager {
 
     pub fn move_left(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen_idx());
+        let active_screen_idx = screen_manager.active_screen_idx();
+        let screen = screen_manager.screen(active_screen_idx);
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
             WorkspaceLayout::Tall => match TallLayout::move_left(&mut screen_manager) {
+                // we failed to select the next left client on the screen, so we try to switch
+                // screens if available, and select the rightmost client there
                 ActionHandledStatus::Unhandled => {}
-                ActionHandledStatus::FullyHandled => {}
+                ActionHandledStatus::FullyHandled => {} // purposefully do nothing here
             },
         }
 

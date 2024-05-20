@@ -152,6 +152,48 @@ impl TallLayout {
         });
     }
 
+    pub fn focus_first(screen_manager: &mut ScreenManager) -> ActionHandledStatus {
+        let index = screen_manager.active_screen_idx();
+        let screen = screen_manager.screen_mut(index);
+
+        if screen.active_workspace().clients().is_empty() {
+            return ActionHandledStatus::Unhandled;
+        }
+
+        let first_client = screen
+            .active_workspace()
+            .clients()
+            .first()
+            .copied()
+            .expect("tried to focus a client on an empty workspace");
+        screen
+            .active_workspace_mut()
+            .set_focused_client(Some(first_client));
+
+        ActionHandledStatus::FullyHandled
+    }
+
+    pub fn focus_last(screen_manager: &mut ScreenManager) -> ActionHandledStatus {
+        let index = screen_manager.active_screen_idx();
+        let screen = screen_manager.screen_mut(index);
+
+        if screen.active_workspace().clients().is_empty() {
+            return ActionHandledStatus::Unhandled;
+        }
+
+        let last_client = screen
+            .active_workspace()
+            .clients()
+            .last()
+            .copied()
+            .expect("tried to focus a client on an empty workspace");
+        screen
+            .active_workspace_mut()
+            .set_focused_client(Some(last_client));
+
+        ActionHandledStatus::FullyHandled
+    }
+
     pub fn focus_left(screen_manager: &mut ScreenManager) -> ActionHandledStatus {
         let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
@@ -163,10 +205,7 @@ impl TallLayout {
         }
 
         // If the active workspace has no focused client, but has any number of clients, we
-        // select the first one
-        //
-        // Im not sure if this scenario is pratically possible, but since it theoretically is,
-        // we handle it
+        // select the last one
         if screen.focused_client().is_none() {
             let last_client = screen
                 .active_workspace()
