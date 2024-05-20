@@ -232,8 +232,7 @@ impl LayoutManager {
         let mut screen_manager = context.screen_manager.borrow_mut();
         let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
-
-        self.hide_workspace(screen.active_workspace())?;
+        let active_workspace_id = screen.active_workspace().id();
 
         match action {
             AvailableActions::Workspace1 => screen.set_active_workspace(0),
@@ -246,10 +245,13 @@ impl LayoutManager {
             AvailableActions::Workspace8 => screen.set_active_workspace(7),
             AvailableActions::Workspace9 => screen.set_active_workspace(8),
             _ => {}
-        }
+        };
 
-        drop(screen_manager);
-        self.display_screens(&context.screen_manager, context.decorator)?;
+        if screen.active_workspace().id().ne(&active_workspace_id) {
+            self.hide_workspace(&screen.workspaces()[active_workspace_id as usize])?;
+            drop(screen_manager);
+            self.display_screens(&context.screen_manager, context.decorator)?;
+        }
 
         Ok(())
     }

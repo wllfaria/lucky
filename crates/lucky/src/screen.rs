@@ -11,13 +11,13 @@ pub struct Client {
     pub visible: bool,
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub enum WorkspaceLayout {
     #[default]
     Tall,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Workspace {
     id: u8,
     layout: WorkspaceLayout,
