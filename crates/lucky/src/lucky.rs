@@ -45,7 +45,7 @@ impl Lucky {
             keyboard: Keyboard::new(&conn, config.clone(), root)?,
             layout_manager: LayoutManager::new(conn.clone(), config.clone()),
             decorator: Decorator::new(conn.clone(), config.clone()),
-            atoms: Atoms::new(&conn),
+            atoms: Atoms::new(&conn, root),
             handlers: Handlers::default(),
             screen_manager: Rc::new(RefCell::new(ScreenManager::new(
                 screen_positions,

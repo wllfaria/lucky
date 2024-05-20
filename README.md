@@ -6,22 +6,31 @@ Minimal, flexible and customizable, window manager for X.
 
 ### Note
 
-Lucky is in heavy development and not ready for use, new features are being added
+Lucky is in heavy development and not fully suited for use, new features are being added
 in a fast pace.
 
-### Features
+### Features and Roadmap
 
 - [x] Multi-monitor support
 - [x] Tiling layout
 - [x] Multiple desktops
 - [x] Window focus follows mouse
 - [x] Custom keybinds for actions and commands
-- [x] Startup programs and commands
 - [x] Customizable decorations
-- [ ] Gaps
+- [ ] Startup programs and commands
+- [ ] Fullscreen and minimize screens
+- [ ] Status bar support
+- [ ] Titles
 - [ ] Floating layout
-- [ ] Status bar
+- [ ] Interactive Resizing
 - [ ] Compositor support
+- [ ] Gaps
+- [ ] ICCCM compliance
+- [ ] Full EWMH compliance
+- [ ] Move windows between workspaces
+
+Some of the features listed here are also part of the EWMH and ICCM specifications, but
+some are highlighted as they are usually features people expect.
 
 ### Configuring
 
