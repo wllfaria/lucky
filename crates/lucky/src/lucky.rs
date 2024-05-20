@@ -74,6 +74,26 @@ impl Lucky {
                     .expect("failed to redraw the screen");
             }
 
+            let pointer_cookie = self.conn.send_request(&xcb::x::QueryPointer {
+                window: self
+                    .conn
+                    .get_setup()
+                    .roots()
+                    .next()
+                    .expect("should have at least one screen")
+                    .root(),
+            });
+
+            if let Ok(pointer_reply) = self.conn.wait_for_reply(pointer_cookie) {
+                let pointer_position = (pointer_reply.root_x(), pointer_reply.root_y());
+                if pointer_position.ne(&self.last_pointer_position) {
+                    self.last_pointer_position = pointer_position;
+                    self.screen_manager
+                        .borrow_mut()
+                        .maybe_switch_screen(pointer_reply);
+                }
+            }
+
             if let Ok(event) = event_rx.try_recv() {
                 match event {
                     XEvent::KeyPress(event) => self.handlers.on_key_press(EventContext {
@@ -136,26 +156,6 @@ impl Lucky {
                 }
 
                 self.conn.flush().expect("failed to flush the connection");
-            }
-
-            let pointer_cookie = self.conn.send_request(&xcb::x::QueryPointer {
-                window: self
-                    .conn
-                    .get_setup()
-                    .roots()
-                    .next()
-                    .expect("should have at least one screen")
-                    .root(),
-            });
-
-            if let Ok(pointer_reply) = self.conn.wait_for_reply(pointer_cookie) {
-                let pointer_position = (pointer_reply.root_x(), pointer_reply.root_y());
-                if pointer_position.ne(&self.last_pointer_position) {
-                    self.last_pointer_position = pointer_position;
-                    self.screen_manager
-                        .borrow_mut()
-                        .maybe_switch_screen(pointer_reply);
-                }
             }
         }
     }

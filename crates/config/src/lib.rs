@@ -72,7 +72,7 @@ where
 pub fn load_config() -> Config {
     let config_path = match std::env::var(LUCKY_CONF_ENV_VAR) {
         Ok(var) => {
-            tracing::debug!("loading config file from $LUCKY_CONFG: {var:?}");
+            tracing::debug!("loading config file from $LUCKY_CONFIG: {var:?}");
             Some(PathBuf::from(&var).join(CONFIG_FILE))
         }
         Err(_) => get_config_dir_path(),
