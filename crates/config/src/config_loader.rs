@@ -2,7 +2,9 @@ use std::ops::Add;
 
 use crate::{
     color_parser::Color,
-    config::{Action, ActionModifier, AvailableActions, AvailableLeaderKeys, Command, Config},
+    config::{
+        Action, ActionModifier, AutoCommand, AvailableActions, AvailableLeaderKeys, Command, Config,
+    },
 };
 use serde::Deserialize;
 
@@ -17,6 +19,7 @@ pub struct UnresolvedConfig {
     leader: UnresolvedLeader,
     actions: Vec<UnresolvedActionEntry>,
     commands: Vec<UnresolvedCommandEntry>,
+    startup_commands: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -77,6 +80,7 @@ pub enum ConfigError {
     Workspaces(String),
     BorderWidth(String),
     BorderColor(String),
+    InvalidCommand(String),
     Color(String),
 }
 
@@ -127,6 +131,11 @@ impl TryFrom<UnresolvedConfig> for Config {
             commands.push(command.try_into()?);
         }
 
+        let mut startup_commands: Vec<AutoCommand> = vec![];
+        for auto_command in value.startup_commands.unwrap_or_default().into_iter() {
+            startup_commands.push(auto_command.try_into()?);
+        }
+
         if value.workspaces.gt(&9) || value.workspaces.eq(&0) {
             return Err(ConfigError::Workspaces(format!(
                 "workspaces = {}: number of workspaces must be greater than 0, and up to 9",
@@ -152,6 +161,7 @@ impl TryFrom<UnresolvedConfig> for Config {
             actions,
             leader,
             commands,
+            startup_commands,
         })
     }
 }
@@ -190,6 +200,30 @@ impl TryFrom<UnresolvedCommandEntry> for Command {
                 .modifiers
                 .into_iter()
                 .fold(0, |acc, modifier| acc + u32::from(modifier)),
+            args: args.0,
+        })
+    }
+}
+
+impl TryFrom<String> for AutoCommand {
+    type Error = ConfigError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if value.is_empty() {
+            return Err(ConfigError::InvalidCommand(
+                "statup_command cannot be empty".to_string(),
+            ));
+        }
+
+        let (command, args): (String, Args) = value
+            .trim_end_matches('&')
+            .trim()
+            .split_once(' ')
+            .map(|(left, right)| (left.to_string(), right.into()))
+            .unwrap_or((value, Args(vec![])));
+
+        Ok(AutoCommand {
+            command,
             args: args.0,
         })
     }

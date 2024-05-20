@@ -28,6 +28,7 @@ pub struct Config {
     /// wether or not the focus should follow the cursor, focusing hovered clients
     /// default: true
     pub(crate) focus_follow_mouse: bool,
+    pub(crate) startup_commands: Vec<AutoCommand>,
 }
 
 impl Config {
@@ -63,6 +64,10 @@ impl Config {
         self.focus_follow_mouse
     }
 
+    pub fn startup_commands(&self) -> &[AutoCommand] {
+        &self.startup_commands
+    }
+
     pub fn update(&mut self, other: Config) {
         self.leader = other.leader;
         self.actions = other.actions;
@@ -88,6 +93,7 @@ impl Default for Config {
             leader: AvailableLeaderKeys::Mod1,
             actions: vec![],
             commands: vec![],
+            startup_commands: vec![],
         }
     }
 }
@@ -167,6 +173,14 @@ pub struct Command {
     pub(crate) args: Vec<String>,
 }
 
+#[derive(Debug)]
+pub struct AutoCommand {
+    /// The string to be spawned when this command is called
+    pub(crate) command: String,
+    /// the arguments to be passed to the program that will be spawned
+    pub(crate) args: Vec<String>,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct ActionModifier(u32);
 
@@ -203,6 +217,16 @@ impl Command {
         self.modifier
     }
 
+    pub fn command(&self) -> &str {
+        &self.command
+    }
+
+    pub fn args(&self) -> &[String] {
+        &self.args
+    }
+}
+
+impl AutoCommand {
     pub fn command(&self) -> &str {
         &self.command
     }

@@ -3,7 +3,7 @@ mod config;
 mod config_loader;
 pub mod keysyms;
 
-pub use config::{AvailableActions, Config};
+pub use config::{AutoCommand, AvailableActions, Config};
 use config_loader::{ConfigError, UnresolvedConfig};
 use std::path::{Path, PathBuf};
 
@@ -58,6 +58,7 @@ where
             ConfigError::Workspaces(msg) => anyhow::bail!(msg),
             ConfigError::BorderWidth(msg) => anyhow::bail!(msg),
             ConfigError::BorderColor(msg) => anyhow::bail!(msg),
+            ConfigError::InvalidCommand(msg) => anyhow::bail!(msg),
             ConfigError::Color(msg) => anyhow::bail!(msg),
         },
     }

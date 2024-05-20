@@ -7,7 +7,8 @@ use crate::{
     layout_manager::LayoutManager,
     screen_manager::{Position, ScreenManager},
 };
-use config::{AvailableActions, Config};
+use anyhow::Context;
+use config::{AutoCommand, AvailableActions, Config};
 use std::{
     cell::RefCell,
     rc::Rc,
@@ -40,6 +41,8 @@ impl Lucky {
         let config = Rc::new(RefCell::new(config::load_config()));
         let root = Self::setup(&conn);
         let screen_positions = Self::get_monitors(&conn, root);
+
+        execute_auto_commands(config.borrow().startup_commands())?;
 
         Ok(Lucky {
             keyboard: Keyboard::new(&conn, config.clone(), root)?,
@@ -286,6 +289,24 @@ fn poll_events(conn: Arc<xcb::Connection>, event_tx: Sender<XEvent>) {
         };
         conn.flush().expect("failed to flush the connection");
     }
+}
+
+pub fn execute_auto_commands(auto_commands: &[AutoCommand]) -> anyhow::Result<()> {
+    for command in auto_commands {
+        tracing::debug!("spawning startup command {command:?}");
+        // TODO: we should store what failed to maybe display a notification for the
+        // user
+        match std::process::Command::new(command.command())
+            .args(command.args())
+            .spawn()
+            .context(format!("failed to spawn command {:?}", command))
+        {
+            Ok(_) => {}
+            Err(_) => tracing::error!("failed to spawn startup_command: {command:?}"),
+        };
+    }
+
+    Ok(())
 }
 
 #[derive(Debug)]

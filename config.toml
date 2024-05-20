@@ -1,10 +1,15 @@
 leader = "Mod1"
 workspaces = 9
-
 border_width = 4
 border_color = "#252525"
 active_border_color = "#2D4F67"
 focus_new_clients = true
+
+startup_commands = [
+    # "dunst -config ~/.config/dunst/dunstrc",
+    # "nm-applet",
+    "nitrogen --restore",
+]
 
 [[actions]]
 modifiers = ["Leader"]
