@@ -51,7 +51,7 @@ impl Workspace {
         &self.clients
     }
 
-    pub fn clients_mut(&mut self) -> &mut [xcb::x::Window] {
+    pub fn clients_mut(&mut self) -> &mut Vec<xcb::x::Window> {
         &mut self.clients
     }
 
@@ -60,7 +60,12 @@ impl Workspace {
     }
 
     pub fn remove_client(&mut self, client: xcb::x::Window) {
+        tracing::debug!("before {:#?}", self.clients);
         self.clients.retain(|i| i.ne(&client));
+        tracing::debug!("after {:#?}", self.clients);
+        self.focused_client
+            .is_some_and(|other| client.eq(&other))
+            .then(|| self.focused_client = None);
     }
 }
 
@@ -100,6 +105,10 @@ impl Screen {
 
     pub fn active_workspace_mut(&mut self) -> &mut Workspace {
         &mut self.workspaces[self.active_workspace as usize]
+    }
+
+    pub fn active_workspace_id(&self) -> usize {
+        self.active_workspace as usize
     }
 
     pub fn set_active_workspace(&mut self, workspace: u8) {

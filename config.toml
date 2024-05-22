@@ -106,6 +106,51 @@ modifiers = ["Leader"]
 key = "9"
 action = "Workspace9"
 
+[[actions]]
+modifiers = ["Leader", "Shift"]
+key = "1"
+action = "MoveToWorkspace1"
+
+[[actions]]
+modifiers = ["Leader", "Shift"]
+key = "2"
+action = "MoveToWorkspace2"
+
+[[actions]]
+modifiers = ["Leader", "Shift"]
+key = "3"
+action = "MoveToWorkspace3"
+
+[[actions]]
+modifiers = ["Leader", "Shift"]
+key = "4"
+action = "MoveToWorkspace4"
+
+[[actions]]
+modifiers = ["Leader", "Shift"]
+key = "5"
+action = "MoveToWorkspace5"
+
+[[actions]]
+modifiers = ["Leader", "Shift"]
+key = "6"
+action = "MoveToWorkspace6"
+
+[[actions]]
+modifiers = ["Leader", "Shift"]
+key = "7"
+action = "MoveToWorkspace7"
+
+[[actions]]
+modifiers = ["Leader", "Shift"]
+key = "8"
+action = "MoveToWorkspace8"
+
+[[actions]]
+modifiers = ["Leader", "Shift"]
+key = "9"
+action = "MoveToWorkspace9"
+
 [[commands]]
 modifiers = ["Leader"]
 key = "Enter"

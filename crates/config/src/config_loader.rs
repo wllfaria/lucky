@@ -72,6 +72,15 @@ enum UnresolvedAction {
     Workspace7,
     Workspace8,
     Workspace9,
+    MoveToWorkspace1,
+    MoveToWorkspace2,
+    MoveToWorkspace3,
+    MoveToWorkspace4,
+    MoveToWorkspace5,
+    MoveToWorkspace6,
+    MoveToWorkspace7,
+    MoveToWorkspace8,
+    MoveToWorkspace9,
     Fullscreen,
 }
 
@@ -242,6 +251,7 @@ impl From<UnresolvedAction> for AvailableActions {
             UnresolvedAction::MoveRight => AvailableActions::MoveRight,
             UnresolvedAction::Close => AvailableActions::Close,
             UnresolvedAction::Reload => AvailableActions::Reload,
+            UnresolvedAction::Fullscreen => AvailableActions::Fullscreen,
             UnresolvedAction::Workspace1 => AvailableActions::Workspace1,
             UnresolvedAction::Workspace2 => AvailableActions::Workspace2,
             UnresolvedAction::Workspace3 => AvailableActions::Workspace3,
@@ -251,7 +261,15 @@ impl From<UnresolvedAction> for AvailableActions {
             UnresolvedAction::Workspace7 => AvailableActions::Workspace7,
             UnresolvedAction::Workspace8 => AvailableActions::Workspace8,
             UnresolvedAction::Workspace9 => AvailableActions::Workspace9,
-            UnresolvedAction::Fullscreen => AvailableActions::Fullscreen,
+            UnresolvedAction::MoveToWorkspace1 => AvailableActions::MoveToWorkspace1,
+            UnresolvedAction::MoveToWorkspace2 => AvailableActions::MoveToWorkspace2,
+            UnresolvedAction::MoveToWorkspace3 => AvailableActions::MoveToWorkspace3,
+            UnresolvedAction::MoveToWorkspace4 => AvailableActions::MoveToWorkspace4,
+            UnresolvedAction::MoveToWorkspace5 => AvailableActions::MoveToWorkspace5,
+            UnresolvedAction::MoveToWorkspace6 => AvailableActions::MoveToWorkspace6,
+            UnresolvedAction::MoveToWorkspace7 => AvailableActions::MoveToWorkspace7,
+            UnresolvedAction::MoveToWorkspace8 => AvailableActions::MoveToWorkspace8,
+            UnresolvedAction::MoveToWorkspace9 => AvailableActions::MoveToWorkspace9,
         }
     }
 }

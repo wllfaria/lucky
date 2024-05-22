@@ -24,7 +24,7 @@ impl Atoms {
         let net_wm_desktop = Self::get_intern_atom(conn, b"_NET_WM_DESKTOP");
         let net_supported = Self::get_intern_atom(conn, b"_NET_SUPPORTED");
 
-        let mut atoms = Atoms {
+        let atoms = Atoms {
             wm_protocols,
             wm_delete_window,
             net_wm_name,

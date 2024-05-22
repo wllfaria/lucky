@@ -13,6 +13,12 @@ impl Handler for ActionHandler {
             .state
             .key_get_one_sym(context.event.detail().into());
 
+        tracing::debug!(
+            "{keysym:?} - {:?} {:?}",
+            context.event.detail(),
+            context.event.state()
+        );
+
         if let Ok(keysym) = Keysym::try_from(keysym) {
             if let Some(action) = context.config.borrow().actions().iter().find(|action| {
                 action.key().eq(&keysym) && context.event.state().eq(&action.modifiers().into())
@@ -29,6 +35,7 @@ impl Handler for ActionHandler {
                     MoveUp => self.handle_move_up(&context)?,
                     MoveRight => self.handle_move_right(&context)?,
                     Reload => context.action_tx.send(action.action())?,
+                    Fullscreen => self.handle_fullscreen(&context)?,
                     Workspace1 => self.handle_change_workspace(&context, action.action())?,
                     Workspace2 => self.handle_change_workspace(&context, action.action())?,
                     Workspace3 => self.handle_change_workspace(&context, action.action())?,
@@ -38,7 +45,15 @@ impl Handler for ActionHandler {
                     Workspace7 => self.handle_change_workspace(&context, action.action())?,
                     Workspace8 => self.handle_change_workspace(&context, action.action())?,
                     Workspace9 => self.handle_change_workspace(&context, action.action())?,
-                    Fullscreen => self.handle_fullscreen(&context)?,
+                    MoveToWorkspace1 => self.handle_move_to_workspace(&context, action.action())?,
+                    MoveToWorkspace2 => self.handle_move_to_workspace(&context, action.action())?,
+                    MoveToWorkspace3 => self.handle_move_to_workspace(&context, action.action())?,
+                    MoveToWorkspace4 => self.handle_move_to_workspace(&context, action.action())?,
+                    MoveToWorkspace5 => self.handle_move_to_workspace(&context, action.action())?,
+                    MoveToWorkspace6 => self.handle_move_to_workspace(&context, action.action())?,
+                    MoveToWorkspace7 => self.handle_move_to_workspace(&context, action.action())?,
+                    MoveToWorkspace8 => self.handle_move_to_workspace(&context, action.action())?,
+                    MoveToWorkspace9 => self.handle_move_to_workspace(&context, action.action())?,
                 }
             }
         }
@@ -245,19 +260,32 @@ impl ActionHandler {
         action: AvailableActions,
     ) -> anyhow::Result<()> {
         match context.layout_manager.change_workspace(context, action) {
-            Ok(_) => tracing::debug!(
-                "changed workspace successfully: {:?}",
-                context.event.event()
-            ),
+            Ok(_) => Ok(()),
             Err(e) => {
                 tracing::error!(
                     "error while changing workspace {:?} ",
                     context.event.event()
                 );
-                return Err(e);
+                Err(e)
             }
         }
-        Ok(())
+    }
+
+    fn handle_move_to_workspace(
+        &self,
+        context: &EventContext<xcb::x::KeyPressEvent>,
+        action: AvailableActions,
+    ) -> anyhow::Result<()> {
+        match context.layout_manager.move_to_workspace(context, action) {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                tracing::error!(
+                    "error while moving client to workspace {:?} ",
+                    context.event.event()
+                );
+                Err(e)
+            }
+        }
     }
 
     fn handle_fullscreen(

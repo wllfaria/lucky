@@ -28,6 +28,7 @@ pub struct Config {
     /// wether or not the focus should follow the cursor, focusing hovered clients
     /// default: true
     pub(crate) focus_follow_mouse: bool,
+    /// commands to be executed during window manager startup
     pub(crate) startup_commands: Vec<AutoCommand>,
 }
 
@@ -109,46 +110,64 @@ pub enum AvailableLeaderKeys {
 /// All the actions available for any given key combination
 #[derive(Debug, Clone)]
 pub enum AvailableActions {
-    /// Focus the client immediatly to the left
+    /// focus the client immediatly to the left
     FocusLeft,
-    /// Focus the client immediatly to the right
+    /// focus the client immediatly to the right
     FocusDown,
-    /// Focus the client immediatly to the bottom
+    /// focus the client immediatly to the bottom
     FocusUp,
-    /// Focus the client immediatly to the top
+    /// focus the client immediatly to the top
     FocusRight,
-    /// Moves a client one position to the left, shifting other clients as needed
+    /// moves a client one position to the left, shifting other clients as needed
     MoveLeft,
-    /// Moves a client one position to the bottom, shifting other clients as needed
+    /// moves a client one position to the bottom, shifting other clients as needed
     MoveDown,
-    /// Moves a client one position to the top, shifting other clients as needed
+    /// moves a client one position to the top, shifting other clients as needed
     MoveUp,
-    /// Moves a client one position to the right, shifting other clients as needed
+    /// moves a client one position to the right, shifting other clients as needed
     MoveRight,
-    /// Closes the focused client
+    /// closes the focused client
     Close,
     /// Reloads the configuration file
     Reload,
-    /// Switches to workspace 1
+    /// switches to workspace 1
     Workspace1,
-    /// Switches to workspace 2
+    /// switches to workspace 2
     Workspace2,
-    /// Switches to workspace 3
+    /// switches to workspace 3
     Workspace3,
-    /// Switches to workspace 4
+    /// switches to workspace 4
     Workspace4,
-    /// Switches to workspace 5
+    /// switches to workspace 5
     Workspace5,
-    /// Switches to workspace 6
+    /// switches to workspace 6
     Workspace6,
-    /// Switches to workspace 7
+    /// switches to workspace 7
     Workspace7,
-    /// Switches to workspace 8
+    /// switches to workspace 8
     Workspace8,
-    /// Switches to workspace 9
+    /// switches to workspace 9
     Workspace9,
     /// set focused client to be fullscreen
     Fullscreen,
+    /// move the focused client to workspace 1
+    MoveToWorkspace1,
+    /// move the focused client to workspace 2
+    MoveToWorkspace2,
+    /// move the focused client to workspace 3
+    MoveToWorkspace3,
+    /// move the focused client to workspace 4
+    MoveToWorkspace4,
+    /// move the focused client to workspace 5
+    MoveToWorkspace5,
+    /// move the focused client to workspace 6
+    MoveToWorkspace6,
+    /// move the focused client to workspace 7
+    MoveToWorkspace7,
+    /// move the focused client to workspace 8
+    MoveToWorkspace8,
+    /// move the focused client to workspace 9
+    MoveToWorkspace9,
 }
 
 #[derive(Debug)]

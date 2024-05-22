@@ -62,7 +62,7 @@ impl LayoutManager {
                 .collect::<Vec<_>>();
 
             if visible_clients.is_empty() {
-                self.hide_workspace(workspace)?;
+                self.hide_workspace(workspace);
                 continue;
             }
 
@@ -308,7 +308,7 @@ impl LayoutManager {
         };
 
         if screen.active_workspace().id().ne(&active_workspace_id) {
-            self.hide_workspace(&screen.workspaces()[active_workspace_id as usize])?;
+            self.hide_workspace(&screen.workspaces()[active_workspace_id as usize]);
             drop(screen_manager);
             self.display_screens(&context.screen_manager, context.decorator)?;
         }
@@ -316,13 +316,56 @@ impl LayoutManager {
         Ok(())
     }
 
-    pub fn hide_workspace(&self, workspace: &Workspace) -> anyhow::Result<()> {
-        for client in workspace.clients() {
-            self.conn
-                .send_request(&xcb::x::UnmapWindow { window: *client });
+    ///
+    pub fn move_to_workspace(
+        &self,
+        context: &EventContext<xcb::x::KeyPressEvent>,
+        action: AvailableActions,
+    ) -> anyhow::Result<()> {
+        let mut screen_manager = context.screen_manager.borrow_mut();
+        let index = screen_manager.active_screen_idx();
+        if let Some(active_client) = screen_manager.get_focused_client() {
+            let client_frame = active_client.frame;
+            let screen = screen_manager.screen_mut(index);
+            let active_workspace_id = screen.active_workspace_id();
+            let workspaces = screen.workspaces_mut();
+            workspaces[active_workspace_id].remove_client(client_frame);
+
+            let new_workspace_id = match action {
+                AvailableActions::MoveToWorkspace1 => 0,
+                AvailableActions::MoveToWorkspace2 => 1,
+                AvailableActions::MoveToWorkspace3 => 2,
+                AvailableActions::MoveToWorkspace4 => 3,
+                AvailableActions::MoveToWorkspace5 => 4,
+                AvailableActions::MoveToWorkspace6 => 5,
+                AvailableActions::MoveToWorkspace7 => 6,
+                AvailableActions::MoveToWorkspace8 => 7,
+                AvailableActions::MoveToWorkspace9 => 8,
+                _ => unreachable!(),
+            };
+
+            workspaces[new_workspace_id]
+                .clients_mut()
+                .push(client_frame);
+
+            self.hide_client(&client_frame);
         }
 
+        drop(screen_manager);
+        self.display_screens(&context.screen_manager, context.decorator)?;
+
         Ok(())
+    }
+
+    fn hide_workspace(&self, workspace: &Workspace) {
+        for client in workspace.clients() {
+            self.hide_client(client);
+        }
+    }
+
+    fn hide_client(&self, client: &xcb::x::Window) {
+        self.conn
+            .send_request(&xcb::x::UnmapWindow { window: *client });
     }
 
     /// Closes an open client.

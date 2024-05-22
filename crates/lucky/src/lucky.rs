@@ -99,17 +99,21 @@ impl Lucky {
 
             if let Ok(event) = event_rx.try_recv() {
                 match event {
-                    XEvent::KeyPress(event) => self.handlers.on_key_press(EventContext {
-                        event,
-                        conn: self.conn.clone(),
-                        keyboard: &self.keyboard,
-                        config: self.config.clone(),
-                        screen_manager: self.screen_manager.clone(),
-                        atoms: &self.atoms,
-                        decorator: &self.decorator,
-                        layout_manager: &self.layout_manager,
-                        action_tx: action_tx.clone(),
-                    }),
+                    XEvent::KeyPress(event) => {
+                        let a = self.keyboard.state.key_get_one_sym(event.detail().into());
+                        tracing::debug!("{a:?}");
+                        self.handlers.on_key_press(EventContext {
+                            event,
+                            conn: self.conn.clone(),
+                            keyboard: &self.keyboard,
+                            config: self.config.clone(),
+                            screen_manager: self.screen_manager.clone(),
+                            atoms: &self.atoms,
+                            decorator: &self.decorator,
+                            layout_manager: &self.layout_manager,
+                            action_tx: action_tx.clone(),
+                        });
+                    }
                     XEvent::MapRequest(event) => self.handlers.on_map_request(EventContext {
                         event,
                         conn: self.conn.clone(),
@@ -284,7 +288,8 @@ fn poll_events(conn: Arc<xcb::Connection>, event_tx: Sender<XEvent>) {
                 }
                 xcb::Event::X(xcb::x::Event::ConfigureRequest(_)) => {}
                 xcb::Event::X(xcb::x::Event::PropertyNotify(_)) => {}
-                e => tracing::error!("{e:?}"),
+                xcb::Event::Input(xcb::xinput::Event::KeyPress(k)) => tracing::error!("{k:?}"),
+                _ => {}
             };
         };
         conn.flush().expect("failed to flush the connection");
