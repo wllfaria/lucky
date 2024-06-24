@@ -32,8 +32,7 @@ impl Keyboard {
             | xcb::xkb::MapPart::VIRTUAL_MOD_MAP;
 
         conn.check_request(conn.send_request_checked(&xcb::xkb::SelectEvents {
-            device_spec: unsafe { std::mem::transmute::<_, u32>(xcb::xkb::Id::UseCoreKbd) }
-                as xcb::xkb::DeviceSpec,
+            device_spec: xcb::xkb::Id::UseCoreKbd as xcb::xkb::DeviceSpec,
             affect_which: events,
             clear: xcb::xkb::EventType::empty(),
             select_all: events,

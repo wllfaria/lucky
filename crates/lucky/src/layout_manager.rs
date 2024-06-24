@@ -6,22 +6,11 @@ use crate::{
     event::EventContext,
     layout_manager::tall_layout::TallLayout,
     screen::{Client, Workspace, WorkspaceLayout},
-    screen_manager::ScreenManager,
+    screen_manager::{Direction, ScreenManager},
 };
 use config::{AvailableActions, Config};
-use std::{
-    cell::RefCell,
-    ops::{Add, Sub},
-    rc::Rc,
-    sync::Arc,
-};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 use xcb::Xid;
-
-#[derive(Debug, PartialEq)]
-pub enum ActionHandledStatus {
-    FullyHandled,
-    Unhandled,
-}
 
 pub struct LayoutManager {
     config: Rc<RefCell<Config>>,
@@ -90,21 +79,25 @@ impl LayoutManager {
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
-            WorkspaceLayout::Tall => {
-                if let ActionHandledStatus::Unhandled = TallLayout::focus_left(&mut screen_manager)
-                {
-                    if active_screen_idx.gt(&0) {
-                        let left_index = active_screen_idx.sub(1);
-                        screen_manager.set_active_screen(left_index);
-                        // here we dont care about the result of this operations, if there is no
-                        // client to focus to the left, we just let it as is
-                        //
-                        // since we are moving screens, we always select the rightmost client of
-                        // the new screen
-                        _ = TallLayout::focus_last(&mut screen_manager);
-                    }
-                }
-            }
+            WorkspaceLayout::Tall => TallLayout::focus_client(
+                &mut screen_manager,
+                TallLayout::focus_last,
+                TallLayout::is_first,
+                Direction::Left,
+                TallLayout::focus_first,
+            ),
+            //{
+            //    if active_screen_idx.gt(&0) {
+            //        let left_index = active_screen_idx.sub(1);
+            //        screen_manager.set_active_screen(left_index);
+            //        // here we dont care about the result of this operations, if there is no
+            //        // client to focus to the left, we just let it as is
+            //        //
+            //        // since we are moving screens, we always select the rightmost client of
+            //        // the new screen
+            //        _ = TallLayout::focus_last(&mut screen_manager);
+            //    }
+            //}
         }
 
         drop(screen_manager);
@@ -121,23 +114,27 @@ impl LayoutManager {
 
         match workspace.layout() {
             // on tall workspace, selecting right and bottom has the same effect.
-            WorkspaceLayout::Tall => {
-                if let ActionHandledStatus::Unhandled =
-                    TallLayout::focus_right_or_bottom(&mut screen_manager)
-                {
-                    let total_screens = screen_manager.screens().len().sub(1);
-                    if total_screens.gt(&active_screen_idx) {
-                        let left_index = active_screen_idx.add(1);
-                        screen_manager.set_active_screen(left_index);
-                        // here we dont care about the result of this operations, if there is no
-                        // client to focus down, we just let it as is
-                        //
-                        // since we are moving screens, we always select the leftmost client of
-                        // the new screen
-                        _ = TallLayout::focus_first(&mut screen_manager);
-                    }
-                }
-            }
+            WorkspaceLayout::Tall => TallLayout::focus_client(
+                &mut screen_manager,
+                TallLayout::focus_first,
+                TallLayout::is_last,
+                Direction::Down,
+                TallLayout::focus_next,
+            ),
+            //    {
+            //        let total_screens = screen_manager.screens().len().sub(1);
+            //        if total_screens.gt(&active_screen_idx) {
+            //            let left_index = active_screen_idx.add(1);
+            //            screen_manager.set_active_screen(left_index);
+            //            // here we dont care about the result of this operations, if there is no
+            //            // client to focus down, we just let it as is
+            //            //
+            //            // since we are moving screens, we always select the leftmost client of
+            //            // the new screen
+            //            _ = TallLayout::focus_first(&mut screen_manager);
+            //        }
+            //    }
+            //}
         }
 
         drop(screen_manager);
@@ -153,21 +150,13 @@ impl LayoutManager {
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
-            WorkspaceLayout::Tall => {
-                if let ActionHandledStatus::Unhandled = TallLayout::focus_up(&mut screen_manager) {
-                    // im still thinking about this, should focusing up change screens?
-                    if active_screen_idx.gt(&0) {
-                        let left_index = active_screen_idx.sub(1);
-                        screen_manager.set_active_screen(left_index);
-                        // here we dont care about the result of this operations, if there is no
-                        // client to focus up, we just let it as is
-                        //
-                        // since we are moving screens, we always select the rightmost client of
-                        // the new screen
-                        _ = TallLayout::focus_last(&mut screen_manager);
-                    }
-                }
-            }
+            WorkspaceLayout::Tall => TallLayout::focus_client(
+                &mut screen_manager,
+                TallLayout::focus_last,
+                TallLayout::is_first,
+                Direction::Right,
+                TallLayout::focus_prev,
+            ),
         }
 
         drop(screen_manager);
@@ -183,24 +172,13 @@ impl LayoutManager {
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
-            // on tall workspace, selecting right and bottom has the same effect.
-            WorkspaceLayout::Tall => {
-                if let ActionHandledStatus::Unhandled =
-                    TallLayout::focus_right_or_bottom(&mut screen_manager)
-                {
-                    let total_screens = screen_manager.screens().len().sub(1);
-                    if total_screens.gt(&active_screen_idx) {
-                        let left_index = active_screen_idx.add(1);
-                        screen_manager.set_active_screen(left_index);
-                        // here we dont care about the result of this operations, if there is no
-                        // client to focus right, we just let it as is
-                        //
-                        // since we are moving screens, we always select the leftmost client of
-                        // the new screen
-                        _ = TallLayout::focus_first(&mut screen_manager);
-                    }
-                }
-            }
+            WorkspaceLayout::Tall => TallLayout::focus_client(
+                &mut screen_manager,
+                TallLayout::focus_first,
+                TallLayout::is_last,
+                Direction::Right,
+                TallLayout::focus_next,
+            ),
         }
 
         drop(screen_manager);
@@ -216,12 +194,13 @@ impl LayoutManager {
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
-            WorkspaceLayout::Tall => match TallLayout::move_left(&mut screen_manager) {
-                // we failed to select the next left client on the screen, so we try to switch
-                // screens if available, and select the rightmost client there
-                ActionHandledStatus::Unhandled => {}
-                ActionHandledStatus::FullyHandled => {} // purposefully do nothing here
-            },
+            WorkspaceLayout::Tall => TallLayout::move_client(
+                &mut screen_manager,
+                TallLayout::focus_last,
+                TallLayout::is_first,
+                Direction::Left,
+                TallLayout::swap_first,
+            ),
         }
 
         drop(screen_manager);
@@ -236,10 +215,13 @@ impl LayoutManager {
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
-            WorkspaceLayout::Tall => match TallLayout::move_down(&mut screen_manager) {
-                ActionHandledStatus::Unhandled => {}
-                ActionHandledStatus::FullyHandled => {}
-            },
+            WorkspaceLayout::Tall => TallLayout::move_client(
+                &mut screen_manager,
+                TallLayout::focus_first,
+                TallLayout::is_last,
+                Direction::Down,
+                TallLayout::swap_next,
+            ),
         }
 
         drop(screen_manager);
@@ -254,10 +236,13 @@ impl LayoutManager {
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
-            WorkspaceLayout::Tall => match TallLayout::move_up(&mut screen_manager) {
-                ActionHandledStatus::Unhandled => {}
-                ActionHandledStatus::FullyHandled => {}
-            },
+            WorkspaceLayout::Tall => TallLayout::move_client(
+                &mut screen_manager,
+                TallLayout::focus_last,
+                TallLayout::is_first,
+                Direction::Up,
+                TallLayout::swap_prev,
+            ),
         }
 
         drop(screen_manager);
@@ -272,10 +257,13 @@ impl LayoutManager {
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
-            WorkspaceLayout::Tall => match TallLayout::move_right(&mut screen_manager) {
-                ActionHandledStatus::Unhandled => {}
-                ActionHandledStatus::FullyHandled => {}
-            },
+            WorkspaceLayout::Tall => TallLayout::move_client(
+                &mut screen_manager,
+                TallLayout::focus_first,
+                TallLayout::is_last,
+                Direction::Right,
+                TallLayout::swap_next,
+            ),
         }
 
         drop(screen_manager);
@@ -316,7 +304,6 @@ impl LayoutManager {
         Ok(())
     }
 
-    ///
     pub fn move_to_workspace(
         &self,
         context: &EventContext<xcb::x::KeyPressEvent>,

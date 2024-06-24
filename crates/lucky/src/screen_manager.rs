@@ -2,7 +2,7 @@ use crate::screen::{Client, Screen};
 use config::Config;
 use std::{cell::RefCell, collections::HashMap, ops::Add, rc::Rc};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Position {
     pub x: i32,
     pub y: i32,
@@ -19,6 +19,26 @@ impl Position {
             height,
         }
     }
+
+    /// fetches the right of the screen by adding its starting x position
+    /// to the width, resulting in its right x position
+    pub fn right(&self) -> i32 {
+        self.x + self.width as i32
+    }
+
+    /// fetches the left of the screen, this exists mainly to have a better
+    /// naming than x over the codebase
+    pub fn left(&self) -> i32 {
+        self.x
+    }
+
+    pub fn bottom(&self) -> i32 {
+        self.y + self.height as i32
+    }
+
+    pub fn top(&self) -> i32 {
+        self.y
+    }
 }
 
 impl std::fmt::Display for Position {
@@ -30,6 +50,14 @@ impl std::fmt::Display for Position {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Direction {
+    Left,
+    Down,
+    Up,
+    Right,
+}
+
 pub struct ScreenManager {
     screens: Vec<Screen>,
     clients: HashMap<xcb::x::Window, Client>,
@@ -39,6 +67,10 @@ pub struct ScreenManager {
 
 impl ScreenManager {
     pub fn new(screen_positions: Vec<Position>, config: Rc<RefCell<Config>>) -> Self {
+        assert!(
+            !screen_positions.is_empty(),
+            "should have at least one screen"
+        );
         ScreenManager {
             active_screen: 0,
             clients: HashMap::new(),
@@ -84,6 +116,33 @@ impl ScreenManager {
 
     pub fn active_screen_idx(&self) -> usize {
         self.active_screen
+    }
+
+    pub fn get_relative_screen_idx(&self, direction: Direction) -> Option<usize> {
+        let active_screen = &self.screens[self.active_screen];
+        let curr_position = active_screen.position();
+
+        let next_screen = self
+            .screens
+            .iter()
+            .enumerate()
+            .map(|(idx, screen)| (idx, screen.position()))
+            .filter(|(_, position)| match direction {
+                Direction::Left => position.right() <= curr_position.left(),
+                Direction::Down => position.top() >= curr_position.bottom(),
+                Direction::Up => position.bottom() <= curr_position.top(),
+                Direction::Right => position.left() >= curr_position.right(),
+            })
+            .min_by_key(|(_, position)| {
+                (euclidean_distance(
+                    position.left(),
+                    position.top(),
+                    curr_position.left(),
+                    curr_position.top(),
+                ) * 1000.0) as i32
+            });
+
+        next_screen.map(|(idx, _)| idx)
     }
 
     pub fn set_active_screen(&mut self, active_screen_idx: usize) {
@@ -192,4 +251,63 @@ fn is_cursor_inside(x: i32, y: i32, position: &Position) -> bool {
         && x.lt(&position.x.add(position.width as i32))
         && y.ge(&position.y)
         && y.lt(&position.y.add(position.height as i32))
+}
+
+/// calculates distance between two cartesian points.
+///
+/// the formula is:
+/// d=√((x2 – x1)² + (y2 – y1)²)
+fn euclidean_distance(x1: i32, y1: i32, x2: i32, y2: i32) -> f64 {
+    (((x2 - x1).pow(2) + (y2 - y1).pow(2)) as f64).sqrt()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_screen_to_left() {
+        let positions = vec![
+            // active screen
+            Position::new(1920, 0, 1920, 1080),
+            // screen to the left of active screen
+            Position::new(0, 0, 1920, 1080),
+            // screen to the right of active screen
+            Position::new(3840, 0, 1920, 1080),
+            // screen to the bottom of active screen
+            Position::new(1920, 1080, 1920, 1080),
+            // screen to the bottom right of active screen
+            Position::new(3840, 1080, 1920, 1080),
+            // screen to the bottom left of active screen
+            Position::new(0, 1080, 1920, 1080),
+            // screen to the top of active screen
+            Position::new(1920, -1080, 1920, 1080),
+            // screen to the top right of active screen
+            Position::new(3840, -1080, 1920, 1080),
+            // screen to the top left of active screen
+            Position::new(0, -1080, 1920, 1080),
+        ];
+        let config = Rc::new(RefCell::new(config::Config::default()));
+        let sm = ScreenManager::new(positions, config.clone());
+
+        let idx = sm.get_relative_screen_idx(Direction::Left).unwrap();
+        let expected = Position::new(0, 0, 1920, 1080);
+        assert!(sm.screens[idx].position() == &expected);
+
+        let idx = sm.get_relative_screen_idx(Direction::Down).unwrap();
+        let expected = Position::new(1920, 1080, 1920, 1080);
+        assert!(sm.screens[idx].position() == &expected);
+
+        let idx = sm.get_relative_screen_idx(Direction::Up).unwrap();
+        let expected = Position::new(1920, -1080, 1920, 1080);
+        assert!(sm.screens[idx].position() == &expected);
+
+        let idx = sm.get_relative_screen_idx(Direction::Right).unwrap();
+        let expected = Position::new(3840, 0, 1920, 1080);
+        assert!(sm.screens[idx].position() == &expected);
+
+        let sm = ScreenManager::new(vec![Position::new(1920, 0, 1920, 1080)], config);
+        let idx = sm.get_relative_screen_idx(Direction::Up);
+        assert!(idx.is_none());
+    }
 }
