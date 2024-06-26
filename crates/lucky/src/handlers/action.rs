@@ -1,5 +1,6 @@
 use crate::event::EventContext;
 use crate::handlers::handler::Handler;
+use crate::screen_manager::Direction;
 use config::keysyms::Keysym;
 use config::AvailableActions;
 
@@ -13,12 +14,6 @@ impl Handler for ActionHandler {
             .state
             .key_get_one_sym(context.event.detail().into());
 
-        tracing::debug!(
-            "{keysym:?} - {:?} {:?}",
-            context.event.detail(),
-            context.event.state()
-        );
-
         if let Ok(keysym) = Keysym::try_from(keysym) {
             if let Some(action) = context.config.borrow().actions().iter().find(|action| {
                 action.key().eq(&keysym) && context.event.state().eq(&action.modifiers().into())
@@ -26,14 +21,14 @@ impl Handler for ActionHandler {
                 use AvailableActions::*;
                 match action.action() {
                     Close => self.handle_close(&context)?,
-                    FocusLeft => self.handle_focus_left(&context)?,
-                    FocusDown => self.handle_focus_down(&context)?,
-                    FocusUp => self.handle_focus_up(&context)?,
-                    FocusRight => self.handle_focus_right(&context)?,
-                    MoveLeft => self.handle_move_left(&context)?,
-                    MoveDown => self.handle_move_down(&context)?,
-                    MoveUp => self.handle_move_up(&context)?,
-                    MoveRight => self.handle_move_right(&context)?,
+                    FocusLeft => self.handle_focus_client(&context, Direction::Left)?,
+                    FocusDown => self.handle_focus_client(&context, Direction::Down)?,
+                    FocusUp => self.handle_focus_client(&context, Direction::Up)?,
+                    FocusRight => self.handle_focus_client(&context, Direction::Right)?,
+                    MoveLeft => self.handle_move_client(&context, Direction::Left)?,
+                    MoveDown => self.handle_move_client(&context, Direction::Down)?,
+                    MoveUp => self.handle_move_client(&context, Direction::Up)?,
+                    MoveRight => self.handle_move_client(&context, Direction::Right)?,
                     Reload => context.action_tx.send(action.action())?,
                     Fullscreen => self.handle_fullscreen(&context)?,
                     Workspace1 => self.handle_change_workspace(&context, action.action())?,
@@ -98,11 +93,12 @@ impl ActionHandler {
         Ok(())
     }
 
-    fn handle_focus_left(
+    fn handle_focus_client(
         &self,
         context: &EventContext<xcb::x::KeyPressEvent>,
+        direction: Direction,
     ) -> anyhow::Result<()> {
-        match context.layout_manager.focus_left(context) {
+        match context.layout_manager.change_focus(context, direction) {
             Ok(_) => {
                 tracing::debug!(
                     "focus left handled correctly for window {:?}",
@@ -120,71 +116,12 @@ impl ActionHandler {
         }
     }
 
-    fn handle_focus_down(
+    fn handle_move_client(
         &self,
         context: &EventContext<xcb::x::KeyPressEvent>,
+        direction: Direction,
     ) -> anyhow::Result<()> {
-        match context.layout_manager.focus_down(context) {
-            Ok(_) => {
-                tracing::debug!(
-                    "focus down handled correctly for window {:?}",
-                    context.event.event()
-                );
-                Ok(())
-            }
-            Err(e) => {
-                tracing::error!(
-                    "error while focusing client {:?} down",
-                    context.event.event()
-                );
-                Err(e)
-            }
-        }
-    }
-
-    fn handle_focus_up(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
-        match context.layout_manager.focus_up(context) {
-            Ok(_) => {
-                tracing::debug!(
-                    "focusing up handled correctly for window {:?}",
-                    context.event.event()
-                );
-                Ok(())
-            }
-            Err(e) => {
-                tracing::error!("error while focusing client {:?} up", context.event.event());
-                Err(e)
-            }
-        }
-    }
-
-    fn handle_focus_right(
-        &self,
-        context: &EventContext<xcb::x::KeyPressEvent>,
-    ) -> anyhow::Result<()> {
-        match context.layout_manager.focus_right(context) {
-            Ok(_) => {
-                tracing::debug!(
-                    "focusing right handled correctly for window {:?}",
-                    context.event.event()
-                );
-                Ok(())
-            }
-            Err(e) => {
-                tracing::error!(
-                    "error while focusing client {:?} right",
-                    context.event.event()
-                );
-                Err(e)
-            }
-        }
-    }
-
-    fn handle_move_left(
-        &self,
-        context: &EventContext<xcb::x::KeyPressEvent>,
-    ) -> anyhow::Result<()> {
-        match context.layout_manager.move_left(context) {
+        match context.layout_manager.move_client(context, direction) {
             Ok(_) => {
                 tracing::debug!(
                     "moving left handled correctly for window {:?}",
@@ -197,61 +134,6 @@ impl ActionHandler {
                 Err(e)
             }
         }
-    }
-
-    fn handle_move_down(
-        &self,
-        context: &EventContext<xcb::x::KeyPressEvent>,
-    ) -> anyhow::Result<()> {
-        match context.layout_manager.move_down(context) {
-            Ok(_) => {
-                tracing::debug!(
-                    "moving down handled correctly for window {:?}",
-                    context.event.event()
-                );
-                Ok(())
-            }
-            Err(e) => {
-                tracing::error!("error while moving client {:?} down", context.event.event());
-                Err(e)
-            }
-        }
-    }
-
-    fn handle_move_up(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
-        match context.layout_manager.move_up(context) {
-            Ok(_) => {
-                tracing::debug!(
-                    "moving up handled correctly for window {:?}",
-                    context.event.event()
-                );
-                Ok(())
-            }
-            Err(e) => {
-                tracing::error!("error while moving client {:?} up", context.event.event());
-                Err(e)
-            }
-        }
-    }
-
-    fn handle_move_right(
-        &self,
-        context: &EventContext<xcb::x::KeyPressEvent>,
-    ) -> anyhow::Result<()> {
-        match context.layout_manager.move_right(context) {
-            Ok(_) => tracing::debug!(
-                "moving right handled correctly for window {:?}",
-                context.event.event()
-            ),
-            Err(e) => {
-                tracing::error!(
-                    "error while moving client {:?} right",
-                    context.event.event()
-                );
-                return Err(e);
-            }
-        }
-        Ok(())
     }
 
     fn handle_change_workspace(

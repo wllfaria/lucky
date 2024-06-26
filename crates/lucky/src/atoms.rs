@@ -10,6 +10,7 @@ pub struct Atoms {
     pub net_number_of_desktops: xcb::x::Atom,
     pub net_wm_desktop: xcb::x::Atom,
     pub net_supported: xcb::x::Atom,
+    pub net_wm_strut_partial: xcb::x::Atom,
 }
 
 impl Atoms {
@@ -23,6 +24,8 @@ impl Atoms {
         let net_number_of_desktops = Self::get_intern_atom(conn, b"_NET_NUMBER_OF_DESKTOPS");
         let net_wm_desktop = Self::get_intern_atom(conn, b"_NET_WM_DESKTOP");
         let net_supported = Self::get_intern_atom(conn, b"_NET_SUPPORTED");
+        let net_wm_strut_partial = Self::get_intern_atom(conn, b"_NET_WM_STRUT_PARTIAL");
+        tracing::debug!(" getting partial strut {net_wm_strut_partial:?}");
 
         let atoms = Atoms {
             wm_protocols,
@@ -34,6 +37,7 @@ impl Atoms {
             net_number_of_desktops,
             net_wm_desktop,
             net_supported,
+            net_wm_strut_partial,
         };
 
         atoms.set_net_supported(conn, root);

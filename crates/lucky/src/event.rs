@@ -178,3 +178,26 @@ impl Clone for EventContext<'_, xcb::x::UnmapNotifyEvent> {
         }
     }
 }
+
+impl Clone for EventContext<'_, xcb::x::PropertyNotifyEvent> {
+    fn clone(&self) -> Self {
+        let event = xcb::x::PropertyNotifyEvent::new(
+            self.event.window(),
+            self.event.atom(),
+            self.event.time(),
+            self.event.state(),
+        );
+
+        Self {
+            event,
+            conn: self.conn.clone(),
+            config: self.config.clone(),
+            keyboard: self.keyboard,
+            screen_manager: self.screen_manager.clone(),
+            atoms: self.atoms,
+            decorator: self.decorator,
+            layout_manager: self.layout_manager,
+            action_tx: self.action_tx.clone(),
+        }
+    }
+}

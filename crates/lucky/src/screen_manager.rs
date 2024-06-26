@@ -2,7 +2,7 @@ use crate::screen::{Client, Screen};
 use config::Config;
 use std::{cell::RefCell, collections::HashMap, ops::Add, rc::Rc};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Position {
     pub x: i32,
     pub y: i32,

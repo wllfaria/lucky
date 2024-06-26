@@ -3,6 +3,7 @@ mod command;
 mod handler;
 mod hover;
 mod map_window;
+mod property_handler;
 mod unmap_window;
 
 use crate::event::EventContext;
@@ -11,6 +12,7 @@ use command::CommandHandler;
 use handler::Handler;
 use hover::HoverHandler;
 use map_window::MapWindowHandler;
+use property_handler::PropertyHandler;
 use unmap_window::UnmapWindowHandler;
 
 pub struct Handlers {
@@ -26,6 +28,7 @@ impl Default for Handlers {
                 Box::<MapWindowHandler>::default(),
                 Box::<UnmapWindowHandler>::default(),
                 Box::<HoverHandler>::default(),
+                Box::<PropertyHandler>::default(),
             ],
         }
     }
@@ -75,6 +78,16 @@ impl Handlers {
     pub fn on_unmap_notify(&mut self, context: EventContext<xcb::x::UnmapNotifyEvent>) {
         for handler in self.handlers.iter_mut() {
             match handler.on_unmap_notify(context.clone()) {
+                Ok(_) => {}
+                Err(e) => tracing::error!("critical error happened: {e:?}"),
+            }
+        }
+        tracing::debug!("unmap handled correctly");
+    }
+
+    pub fn on_property_notify(&mut self, context: EventContext<xcb::x::PropertyNotifyEvent>) {
+        for handler in self.handlers.iter_mut() {
+            match handler.on_property_notify(context.clone()) {
                 Ok(_) => {}
                 Err(e) => tracing::error!("critical error happened: {e:?}"),
             }

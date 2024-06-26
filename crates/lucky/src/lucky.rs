@@ -158,7 +158,19 @@ impl Lucky {
                         layout_manager: &self.layout_manager,
                         action_tx: action_tx.clone(),
                     }),
-                    XEvent::PropertyNotify(_) => {}
+                    XEvent::PropertyNotify(event) => {
+                        self.handlers.on_property_notify(EventContext {
+                            event,
+                            conn: self.conn.clone(),
+                            keyboard: &self.keyboard,
+                            config: self.config.clone(),
+                            screen_manager: self.screen_manager.clone(),
+                            atoms: &self.atoms,
+                            decorator: &self.decorator,
+                            layout_manager: &self.layout_manager,
+                            action_tx: action_tx.clone(),
+                        })
+                    }
                     XEvent::ConfigureRequest(_) => todo!(),
                 }
 
@@ -258,37 +270,59 @@ fn poll_events(conn: Arc<xcb::Connection>, event_tx: Sender<XEvent>) {
             match event {
                 xcb::Event::X(xcb::x::Event::KeyPress(e)) => {
                     if event_tx.send(XEvent::KeyPress(e)).is_err() {
-                        tracing::debug!("failed to send event through channel");
+                        tracing::error!(
+                            target = "poll_events",
+                            "failed to send event through channel"
+                        );
                         std::process::abort();
                     }
                 }
                 xcb::Event::X(xcb::x::Event::MapRequest(e)) => {
                     if event_tx.send(XEvent::MapRequest(e)).is_err() {
-                        tracing::debug!("failed to send event through channel");
+                        tracing::error!(
+                            target = "poll_events",
+                            "failed to send event through channel"
+                        );
                         std::process::abort();
                     }
                 }
                 xcb::Event::X(xcb::x::Event::DestroyNotify(e)) => {
                     if event_tx.send(XEvent::DestroyNotify(e)).is_err() {
-                        tracing::debug!("failed to send event through channel");
+                        tracing::error!(
+                            target = "poll_events",
+                            "failed to send event through channel"
+                        );
                         std::process::abort();
                     }
                 }
                 xcb::Event::X(xcb::x::Event::EnterNotify(e)) => {
                     if event_tx.send(XEvent::EnterNotify(e)).is_err() {
-                        tracing::debug!("failed to send event through channel");
+                        tracing::error!(
+                            target = "poll_events",
+                            "failed to send event through channel"
+                        );
                         std::process::abort();
                     }
                 }
                 xcb::Event::X(xcb::x::Event::UnmapNotify(e)) => {
                     if event_tx.send(XEvent::UnmapNotify(e)).is_err() {
-                        tracing::debug!("failed to send event through channel");
+                        tracing::error!(
+                            target = "poll_events",
+                            "failed to send event through channel"
+                        );
+                        std::process::abort();
+                    }
+                }
+                xcb::Event::X(xcb::x::Event::PropertyNotify(e)) => {
+                    if event_tx.send(XEvent::PropertyNotify(e)).is_err() {
+                        tracing::error!(
+                            target = "poll_events",
+                            "failed to send event through channel"
+                        );
                         std::process::abort();
                     }
                 }
                 xcb::Event::X(xcb::x::Event::ConfigureRequest(_)) => {}
-                xcb::Event::X(xcb::x::Event::PropertyNotify(_)) => {}
-                xcb::Event::Input(xcb::xinput::Event::KeyPress(k)) => tracing::error!("{k:?}"),
                 _ => {}
             };
         };

@@ -72,32 +72,18 @@ impl LayoutManager {
         Ok(())
     }
 
-    pub fn focus_left(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
+    pub fn change_focus(
+        &self,
+        context: &EventContext<xcb::x::KeyPressEvent>,
+        direction: Direction,
+    ) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
         let active_screen_idx = screen_manager.active_screen_idx();
         let screen = screen_manager.screen(active_screen_idx);
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
-            WorkspaceLayout::Tall => TallLayout::focus_client(
-                &mut screen_manager,
-                TallLayout::focus_last,
-                TallLayout::is_first,
-                Direction::Left,
-                TallLayout::focus_first,
-            ),
-            //{
-            //    if active_screen_idx.gt(&0) {
-            //        let left_index = active_screen_idx.sub(1);
-            //        screen_manager.set_active_screen(left_index);
-            //        // here we dont care about the result of this operations, if there is no
-            //        // client to focus to the left, we just let it as is
-            //        //
-            //        // since we are moving screens, we always select the rightmost client of
-            //        // the new screen
-            //        _ = TallLayout::focus_last(&mut screen_manager);
-            //    }
-            //}
+            WorkspaceLayout::Tall => TallLayout::focus_client(&mut screen_manager, direction),
         }
 
         drop(screen_manager);
@@ -106,164 +92,18 @@ impl LayoutManager {
         Ok(())
     }
 
-    pub fn focus_down(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
+    pub fn move_client(
+        &self,
+        context: &EventContext<xcb::x::KeyPressEvent>,
+        direction: Direction,
+    ) -> anyhow::Result<()> {
         let mut screen_manager = context.screen_manager.borrow_mut();
         let active_screen_idx = screen_manager.active_screen_idx();
         let screen = screen_manager.screen(active_screen_idx);
         let workspace = screen.active_workspace();
 
         match workspace.layout() {
-            // on tall workspace, selecting right and bottom has the same effect.
-            WorkspaceLayout::Tall => TallLayout::focus_client(
-                &mut screen_manager,
-                TallLayout::focus_first,
-                TallLayout::is_last,
-                Direction::Down,
-                TallLayout::focus_next,
-            ),
-            //    {
-            //        let total_screens = screen_manager.screens().len().sub(1);
-            //        if total_screens.gt(&active_screen_idx) {
-            //            let left_index = active_screen_idx.add(1);
-            //            screen_manager.set_active_screen(left_index);
-            //            // here we dont care about the result of this operations, if there is no
-            //            // client to focus down, we just let it as is
-            //            //
-            //            // since we are moving screens, we always select the leftmost client of
-            //            // the new screen
-            //            _ = TallLayout::focus_first(&mut screen_manager);
-            //        }
-            //    }
-            //}
-        }
-
-        drop(screen_manager);
-        self.display_screens(&context.screen_manager, context.decorator)?;
-
-        Ok(())
-    }
-
-    pub fn focus_up(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
-        let mut screen_manager = context.screen_manager.borrow_mut();
-        let active_screen_idx = screen_manager.active_screen_idx();
-        let screen = screen_manager.screen(active_screen_idx);
-        let workspace = screen.active_workspace();
-
-        match workspace.layout() {
-            WorkspaceLayout::Tall => TallLayout::focus_client(
-                &mut screen_manager,
-                TallLayout::focus_last,
-                TallLayout::is_first,
-                Direction::Right,
-                TallLayout::focus_prev,
-            ),
-        }
-
-        drop(screen_manager);
-        self.display_screens(&context.screen_manager, context.decorator)?;
-
-        Ok(())
-    }
-
-    pub fn focus_right(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
-        let mut screen_manager = context.screen_manager.borrow_mut();
-        let active_screen_idx = screen_manager.active_screen_idx();
-        let screen = screen_manager.screen(active_screen_idx);
-        let workspace = screen.active_workspace();
-
-        match workspace.layout() {
-            WorkspaceLayout::Tall => TallLayout::focus_client(
-                &mut screen_manager,
-                TallLayout::focus_first,
-                TallLayout::is_last,
-                Direction::Right,
-                TallLayout::focus_next,
-            ),
-        }
-
-        drop(screen_manager);
-        self.display_screens(&context.screen_manager, context.decorator)?;
-
-        Ok(())
-    }
-
-    pub fn move_left(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
-        let mut screen_manager = context.screen_manager.borrow_mut();
-        let active_screen_idx = screen_manager.active_screen_idx();
-        let screen = screen_manager.screen(active_screen_idx);
-        let workspace = screen.active_workspace();
-
-        match workspace.layout() {
-            WorkspaceLayout::Tall => TallLayout::move_client(
-                &mut screen_manager,
-                TallLayout::focus_last,
-                TallLayout::is_first,
-                Direction::Left,
-                TallLayout::swap_first,
-            ),
-        }
-
-        drop(screen_manager);
-        self.display_screens(&context.screen_manager, context.decorator)?;
-
-        Ok(())
-    }
-
-    pub fn move_down(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
-        let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen_idx());
-        let workspace = screen.active_workspace();
-
-        match workspace.layout() {
-            WorkspaceLayout::Tall => TallLayout::move_client(
-                &mut screen_manager,
-                TallLayout::focus_first,
-                TallLayout::is_last,
-                Direction::Down,
-                TallLayout::swap_next,
-            ),
-        }
-
-        drop(screen_manager);
-        self.display_screens(&context.screen_manager, context.decorator)?;
-
-        Ok(())
-    }
-
-    pub fn move_up(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
-        let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen_idx());
-        let workspace = screen.active_workspace();
-
-        match workspace.layout() {
-            WorkspaceLayout::Tall => TallLayout::move_client(
-                &mut screen_manager,
-                TallLayout::focus_last,
-                TallLayout::is_first,
-                Direction::Up,
-                TallLayout::swap_prev,
-            ),
-        }
-
-        drop(screen_manager);
-        self.display_screens(&context.screen_manager, context.decorator)?;
-
-        Ok(())
-    }
-
-    pub fn move_right(&self, context: &EventContext<xcb::x::KeyPressEvent>) -> anyhow::Result<()> {
-        let mut screen_manager = context.screen_manager.borrow_mut();
-        let screen = screen_manager.screen(screen_manager.active_screen_idx());
-        let workspace = screen.active_workspace();
-
-        match workspace.layout() {
-            WorkspaceLayout::Tall => TallLayout::move_client(
-                &mut screen_manager,
-                TallLayout::focus_first,
-                TallLayout::is_last,
-                Direction::Right,
-                TallLayout::swap_next,
-            ),
+            WorkspaceLayout::Tall => TallLayout::move_client(&mut screen_manager, direction),
         }
 
         drop(screen_manager);

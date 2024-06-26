@@ -11,6 +11,14 @@ pub struct Client {
     pub visible: bool,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct ReservedClient {
+    pub window: xcb::x::Window,
+    pub show_on_all_workspaces: bool,
+    pub workspace: u8,
+    pub position: Position,
+}
+
 #[derive(Default, Debug, Clone, PartialEq)]
 pub enum WorkspaceLayout {
     #[default]
@@ -72,6 +80,11 @@ pub struct Screen {
     position: Position,
     active_workspace: u8,
     workspaces: Vec<Workspace>,
+    reserved_clients: Vec<ReservedClient>,
+    reserved_left_area: u32,
+    reserved_bottom_area: u32,
+    reserved_top_area: u32,
+    reserved_right_area: u32,
 }
 
 impl Screen {
@@ -79,10 +92,35 @@ impl Screen {
         Screen {
             position,
             active_workspace: 0,
+            reserved_left_area: 0,
+            reserved_bottom_area: 0,
+            reserved_top_area: 0,
+            reserved_right_area: 0,
+            reserved_clients: Vec::default(),
             workspaces: (0..config.borrow().workspaces())
                 .map(Workspace::new)
                 .collect(),
         }
+    }
+
+    pub fn reserved_left_area(&self) -> u32 {
+        self.reserved_left_area
+    }
+
+    pub fn reserved_bottom_area(&self) -> u32 {
+        self.reserved_bottom_area
+    }
+
+    pub fn reserved_top_area(&self) -> u32 {
+        self.reserved_top_area
+    }
+
+    pub fn reserved_right_area(&self) -> u32 {
+        self.reserved_right_area
+    }
+
+    pub fn reserved_clients(&self) -> &[ReservedClient] {
+        &self.reserved_clients
     }
 
     pub fn focused_client(&self) -> Option<xcb::x::Window> {
@@ -115,5 +153,33 @@ impl Screen {
 
     pub fn position(&self) -> &Position {
         &self.position
+    }
+
+    pub fn add_left_reserved_area(&mut self, amount: u32) {
+        self.reserved_left_area += amount;
+    }
+
+    pub fn add_bottom_reserved_area(&mut self, amount: u32) {
+        self.reserved_bottom_area += amount;
+    }
+
+    pub fn add_top_reserved_area(&mut self, amount: u32) {
+        self.reserved_top_area += amount;
+    }
+
+    pub fn add_right_reserved_area(&mut self, amount: u32) {
+        self.reserved_right_area += amount;
+    }
+
+    pub fn add_reserved_client(&mut self, reserved_client: ReservedClient) {
+        self.reserved_clients.push(reserved_client);
+    }
+
+    pub fn get_available_area(&self) -> Position {
+        let x = self.position.x + self.reserved_left_area as i32;
+        let y = self.position.y + self.reserved_top_area as i32;
+        let width = self.position.width - self.reserved_left_area - self.reserved_right_area;
+        let height = self.position.height - self.reserved_top_area - self.reserved_bottom_area;
+        Position::new(x, y, width, height)
     }
 }

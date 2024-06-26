@@ -35,4 +35,11 @@ pub trait Handler {
     ) -> anyhow::Result<()> {
         Ok(())
     }
+
+    fn on_property_notify(
+        &mut self,
+        _context: EventContext<xcb::x::PropertyNotifyEvent>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
 }

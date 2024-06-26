@@ -1,15 +1,13 @@
-use crate::{
-    decorator::Decorator,
-    screen::{Client, Screen},
-    screen_manager::{Direction, Position, ScreenManager},
-};
 use config::Config;
-use std::{
-    cell::RefCell,
-    ops::{Add, Div, Mul, Sub},
-    rc::Rc,
-    sync::Arc,
-};
+
+use crate::decorator::Decorator;
+use crate::screen::{Client, Screen};
+use crate::screen_manager::{Direction, Position, ScreenManager};
+
+use std::cell::RefCell;
+use std::ops::{Add, Div, Mul, Sub};
+use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct TallLayout {}
 
@@ -23,13 +21,20 @@ impl TallLayout {
         decorator: &Decorator,
     ) -> anyhow::Result<()> {
         let visible_clients_len = clients.len();
-        tracing::debug!("displaying window with {visible_clients_len} visible clients");
+        let available_area = screen.get_available_area();
 
         let main_width = if visible_clients_len.eq(&1) {
-            screen.position().width
+            available_area.width
         } else {
-            screen.position().width.div(2)
+            available_area.width.div(2)
         };
+
+        for client in screen.reserved_clients() {
+            Self::configure_window(conn, client.window, client.position.clone());
+            conn.send_request(&xcb::x::MapWindow {
+                window: client.window,
+            });
+        }
 
         for (i, client) in clients.iter().enumerate() {
             match decorator.unfocus_client(client) {
@@ -39,11 +44,11 @@ impl TallLayout {
                 }
             }
             match i {
-                0 => Self::display_main_client(conn, client, screen, main_width, config),
+                0 => Self::display_main_client(conn, client, &available_area, main_width, config),
                 _ => Self::display_side_client(
                     conn,
                     client,
-                    screen,
+                    &available_area,
                     i,
                     visible_clients_len,
                     main_width,
@@ -52,18 +57,14 @@ impl TallLayout {
             }
         }
 
-        tracing::debug!("mapped visible clients");
+        let Some(focused_client) = focused_client else {
+            return Ok(());
+        };
 
-        if let Some(focused_client) = focused_client {
-            if let Some(client) = clients.iter().find(|&&client| client.eq(focused_client)) {
-                if focused_client.eq(client) {
-                    match decorator.focus_client(client) {
-                        Ok(_) => tracing::info!("focused client {:?}", client),
-                        Err(e) => return Err(e),
-                    }
-                }
-            }
-        }
+        clients
+            .iter()
+            .find(|&&client| client == focused_client)
+            .map(|client| decorator.focus_client(client));
 
         Ok(())
     }
@@ -71,24 +72,22 @@ impl TallLayout {
     fn display_main_client(
         conn: &Arc<xcb::Connection>,
         client: &Client,
-        screen: &Screen,
+        available_area: &Position,
         main_width: u32,
         config: &Rc<RefCell<Config>>,
     ) {
         let border_double = config.borrow().border_width().mul(2) as u32;
-        tracing::debug!("{screen:?}");
         let frame_position = Position::new(
-            screen.position().x,
-            screen.position().y,
+            available_area.x,
+            available_area.y,
             main_width.sub(border_double),
-            screen.position().height.sub(border_double),
+            available_area.height.sub(border_double),
         );
         let client_position = Position::new(
             0,
             0,
             main_width.sub(config.borrow().border_width() as u32),
-            screen
-                .position()
+            available_area
                 .height
                 .sub(config.borrow().border_width() as u32),
         );
@@ -105,43 +104,43 @@ impl TallLayout {
         conn.send_request(&xcb::x::MapWindow {
             window: client.window,
         });
-        tracing::debug!("mapped frame");
         conn.send_request(&xcb::x::MapWindow {
             window: client.frame,
         });
-        tracing::debug!("mapped client");
     }
 
     fn display_side_client(
         conn: &Arc<xcb::Connection>,
         client: &Client,
-        screen: &Screen,
+        available_area: &Position,
         index: usize,
         total: usize,
         main_width: u32,
         config: &Rc<RefCell<Config>>,
     ) {
-        let width = screen.position().width.sub(main_width);
+        let width = available_area.width.sub(main_width);
         let total_siblings = total.sub(1);
-        let height = screen.position().height.div_ceil(total_siblings as u32);
+        let height = available_area.height.div_ceil(total_siblings as u32);
         let sibling_index = index.sub(1);
         let border_double = config.borrow().border_width().mul(2) as u32;
         let position_y = height.mul(sibling_index as u32) as i32;
+
+        let height = height.sub(border_double);
 
         Self::configure_window(
             conn,
             client.frame,
             Position::new(
-                screen.position().x.add(main_width as i32),
-                screen.position().y.add(position_y),
+                available_area.x.add(main_width as i32),
+                available_area.y.add(position_y),
                 width.sub(border_double),
-                height.sub(border_double),
+                height,
             ),
         );
         Self::configure_window(
             conn,
             client.window,
-            Position::new(0, 0, width.sub(border_double), height.sub(border_double)),
+            Position::new(0, 0, width.sub(border_double), height),
         );
         conn.send_request(&xcb::x::MapWindow {
             window: client.window,
@@ -151,7 +150,7 @@ impl TallLayout {
         });
     }
 
-    pub fn is_first(screen: &mut Screen, client: xcb::x::Window) -> bool {
+    fn is_first(screen: &mut Screen, client: xcb::x::Window) -> bool {
         screen
             .active_workspace()
             .clients()
@@ -159,7 +158,7 @@ impl TallLayout {
             .is_some_and(|focused| focused.eq(&client))
     }
 
-    pub fn is_last(screen: &mut Screen, client: xcb::x::Window) -> bool {
+    fn is_last(screen: &mut Screen, client: xcb::x::Window) -> bool {
         screen
             .active_workspace()
             .clients()
@@ -167,7 +166,7 @@ impl TallLayout {
             .is_some_and(|focused| focused.eq(&client))
     }
 
-    pub fn swap_first(screen: &mut Screen, client: xcb::x::Window) {
+    fn swap_first(screen: &mut Screen, client: xcb::x::Window) {
         let index = screen
             .active_workspace()
             .clients()
@@ -178,7 +177,7 @@ impl TallLayout {
         screen.active_workspace_mut().clients_mut().swap(index, 0);
     }
 
-    pub fn swap_prev(screen: &mut Screen, client: xcb::x::Window) {
+    fn swap_prev(screen: &mut Screen, client: xcb::x::Window) {
         let index = screen
             .active_workspace()
             .clients()
@@ -192,7 +191,7 @@ impl TallLayout {
             .swap(index, index.sub(1));
     }
 
-    pub fn swap_next(screen: &mut Screen, client: xcb::x::Window) {
+    fn swap_next(screen: &mut Screen, client: xcb::x::Window) {
         let index = screen
             .active_workspace()
             .clients()
@@ -206,7 +205,7 @@ impl TallLayout {
             .swap(index, index.add(1));
     }
 
-    pub fn focus_first(screen: &mut Screen, _: xcb::x::Window) {
+    fn focus_first(screen: &mut Screen, _: xcb::x::Window) {
         let first_client = screen
             .active_workspace()
             .clients()
@@ -218,7 +217,7 @@ impl TallLayout {
             .set_focused_client(Some(first_client));
     }
 
-    pub fn focus_last(screen: &mut Screen, _: xcb::x::Window) {
+    fn focus_last(screen: &mut Screen, _: xcb::x::Window) {
         let last_client = screen
             .active_workspace()
             .clients()
@@ -230,7 +229,7 @@ impl TallLayout {
             .set_focused_client(Some(last_client));
     }
 
-    pub fn focus_prev(screen: &mut Screen, client: xcb::x::Window) {
+    fn focus_prev(screen: &mut Screen, client: xcb::x::Window) {
         let index = screen
             .active_workspace()
             .clients()
@@ -250,7 +249,7 @@ impl TallLayout {
             .set_focused_client(Some(client));
     }
 
-    pub fn focus_next(screen: &mut Screen, client: xcb::x::Window) {
+    fn focus_next(screen: &mut Screen, client: xcb::x::Window) {
         let index = screen
             .active_workspace()
             .clients()
@@ -270,17 +269,7 @@ impl TallLayout {
             .set_focused_client(Some(client));
     }
 
-    pub fn focus_client<E, C, S>(
-        screen_manager: &mut ScreenManager,
-        when_empty: E,
-        should_change_screen: C,
-        change_screen_direction: Direction,
-        focus: S,
-    ) where
-        E: Fn(&mut Screen, xcb::x::Window),
-        C: Fn(&mut Screen, xcb::x::Window) -> bool,
-        S: Fn(&mut Screen, xcb::x::Window),
-    {
+    pub fn focus_client(screen_manager: &mut ScreenManager, direction: Direction) {
         let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
 
@@ -293,48 +282,46 @@ impl TallLayout {
             .expect("tried to get the focused client when there was none");
 
         if screen.focused_client().is_none() {
-            when_empty(screen, client);
             return;
         }
 
-        if should_change_screen(screen, client) {
-            let Some(new_screen) = screen_manager.get_relative_screen_idx(change_screen_direction)
-            else {
+        let should_change_screen = match direction {
+            Direction::Left => Self::is_first(screen, client),
+            Direction::Down => Self::is_last(screen, client),
+            Direction::Up => Self::is_first(screen, client),
+            Direction::Right => Self::is_last(screen, client),
+        };
+
+        if should_change_screen {
+            let Some(new_screen) = screen_manager.get_relative_screen_idx(direction) else {
                 return;
             };
 
             screen_manager.set_active_screen(new_screen);
+            let screen = screen_manager.screen_mut(index);
 
-            Self::focus_client(
-                screen_manager,
-                when_empty,
-                should_change_screen,
-                change_screen_direction,
-                focus,
-            );
+            match direction {
+                Direction::Left => Self::focus_first(screen, client),
+                Direction::Down => Self::focus_first(screen, client),
+                Direction::Up => Self::focus_last(screen, client),
+                Direction::Right => Self::focus_last(screen, client),
+            }
 
             return;
         }
 
-        focus(screen, client);
+        match direction {
+            Direction::Left => Self::focus_first(screen, client),
+            Direction::Down => Self::focus_next(screen, client),
+            Direction::Up => Self::focus_prev(screen, client),
+            Direction::Right => Self::focus_next(screen, client),
+        }
     }
 
-    pub fn move_client<E, C, S>(
-        screen_manager: &mut ScreenManager,
-        when_empty: E,
-        should_change_screen: C,
-        change_screen_direction: Direction,
-        swap: S,
-    ) where
-        E: Fn(&mut Screen, xcb::x::Window),
-        C: Fn(&mut Screen, xcb::x::Window) -> bool,
-        S: Fn(&mut Screen, xcb::x::Window),
-    {
+    pub fn move_client(screen_manager: &mut ScreenManager, direction: Direction) {
         let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
 
-        // If the active workspace has no clients, we return as unhandled for the layout manager to
-        // decide what to do
         if screen.active_workspace().clients().is_empty() {
             return;
         }
@@ -343,16 +330,25 @@ impl TallLayout {
             .focused_client()
             .expect("tried to get the focused client when there was none");
 
-        // If the active workspace has no focused client, but has any number of clients, we
-        // select the last one, we cannot move a non-selected client
         if screen.focused_client().is_none() {
-            when_empty(screen, client);
+            match direction {
+                Direction::Left => Self::focus_last(screen, client),
+                Direction::Down => Self::focus_first(screen, client),
+                Direction::Up => Self::focus_last(screen, client),
+                Direction::Right => Self::focus_first(screen, client),
+            }
             return;
         }
 
-        if should_change_screen(screen, client) {
-            let Some(new_screen) = screen_manager.get_relative_screen_idx(change_screen_direction)
-            else {
+        let should_change_screen = match direction {
+            Direction::Left => Self::is_first(screen, client),
+            Direction::Down => Self::is_last(screen, client),
+            Direction::Up => Self::is_first(screen, client),
+            Direction::Right => Self::is_last(screen, client),
+        };
+
+        if should_change_screen {
+            let Some(new_screen) = screen_manager.get_relative_screen_idx(direction) else {
                 return;
             };
 
@@ -369,7 +365,12 @@ impl TallLayout {
             return;
         }
 
-        swap(screen, client);
+        match direction {
+            Direction::Left => Self::swap_first(screen, client),
+            Direction::Down => Self::swap_next(screen, client),
+            Direction::Up => Self::swap_prev(screen, client),
+            Direction::Right => Self::swap_next(screen, client),
+        }
     }
 
     fn configure_window(conn: &Arc<xcb::Connection>, window: xcb::x::Window, client_pos: Position) {
@@ -426,13 +427,7 @@ mod tests {
         // │          ││ selected │
         // └──────────┘└──────────┘
         // select the second one
-        TallLayout::focus_client(
-            &mut screen_manager,
-            TallLayout::focus_last,
-            TallLayout::is_first,
-            Direction::Right,
-            TallLayout::focus_prev,
-        );
+        TallLayout::focus_client(&mut screen_manager, Direction::Right);
         let screen = screen_manager.screen_mut(0);
         assert!(screen.focused_client().eq(&Some(frame_b)));
 
@@ -440,13 +435,7 @@ mod tests {
         // │          ││ selected │
         // └──────────┘└──────────┘
         // since we are at the last, it should do nothing and return Unhandled
-        TallLayout::focus_client(
-            &mut screen_manager,
-            TallLayout::focus_last,
-            TallLayout::is_first,
-            Direction::Right,
-            TallLayout::focus_prev,
-        );
+        TallLayout::focus_client(&mut screen_manager, Direction::Right);
         let screen = screen_manager.screen_mut(0);
         assert!(screen.focused_client().eq(&Some(frame_b)));
 
@@ -454,13 +443,7 @@ mod tests {
         // │ selected ││          │
         // └──────────┘└──────────┘
         // set the first one to be selected
-        TallLayout::focus_client(
-            &mut screen_manager,
-            TallLayout::focus_last,
-            TallLayout::is_first,
-            Direction::Left,
-            TallLayout::focus_first,
-        );
+        TallLayout::focus_client(&mut screen_manager, Direction::Left);
         let screen = screen_manager.screen_mut(0);
         assert!(screen.focused_client().eq(&Some(frame_a)));
 
@@ -468,13 +451,7 @@ mod tests {
         // │ selected ││          │
         // └──────────┘└──────────┘
         // similarly, when at the first, should do nothing and return unhandled
-        TallLayout::focus_client(
-            &mut screen_manager,
-            TallLayout::focus_last,
-            TallLayout::is_first,
-            Direction::Left,
-            TallLayout::focus_first,
-        );
+        TallLayout::focus_client(&mut screen_manager, Direction::Left);
         let screen = screen_manager.screen_mut(0);
         assert!(screen.focused_client().eq(&Some(frame_a)));
     }
