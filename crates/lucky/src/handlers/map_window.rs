@@ -109,7 +109,10 @@ impl Handler for MapWindowHandler {
             return Ok(());
         }
 
-        let frame = context.decorator.decorate_client(window)?;
+        let screen_manager = context.screen_manager.borrow();
+        let active_screen_idx = screen_manager.active_screen_idx();
+        let screen = screen_manager.screen(active_screen_idx);
+        let frame = context.decorator.decorate_client(window, screen.root())?;
 
         match context.layout_manager.enable_client_events(window) {
             Ok(_) => tracing::info!("enabled events for window: {:?}", window),

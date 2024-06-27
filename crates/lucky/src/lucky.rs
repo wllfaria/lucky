@@ -5,6 +5,7 @@ use crate::{
     handlers::Handlers,
     keyboard::Keyboard,
     layout_manager::LayoutManager,
+    screen::Screen,
     screen_manager::{Position, ScreenManager},
 };
 use anyhow::Context;
@@ -40,7 +41,13 @@ impl Lucky {
         let conn = Arc::new(conn);
         let config = Rc::new(RefCell::new(config::load_config()));
         let root = Self::setup(&conn);
-        let screen_positions = Self::get_monitors(&conn, root);
+        let atoms = Atoms::new(&conn, root);
+        let screens = Self::get_monitors(&conn, root, &config);
+        let screen_manager = ScreenManager::new(screens, config.clone());
+
+        for screen in screen_manager.screens() {
+            screen_manager.update_atoms(&atoms, screen, &conn);
+        }
 
         execute_auto_commands(config.borrow().startup_commands())?;
 
@@ -48,12 +55,9 @@ impl Lucky {
             keyboard: Keyboard::new(&conn, config.clone(), root)?,
             layout_manager: LayoutManager::new(conn.clone(), config.clone()),
             decorator: Decorator::new(conn.clone(), config.clone()),
-            atoms: Atoms::new(&conn, root),
+            atoms,
             handlers: Handlers::default(),
-            screen_manager: Rc::new(RefCell::new(ScreenManager::new(
-                screen_positions,
-                config.clone(),
-            ))),
+            screen_manager: Rc::new(RefCell::new(screen_manager)),
 
             conn,
             config,
@@ -233,7 +237,11 @@ impl Lucky {
         root
     }
 
-    fn get_monitors(conn: &Arc<xcb::Connection>, root: xcb::x::Window) -> Vec<Position> {
+    fn get_monitors(
+        conn: &Arc<xcb::Connection>,
+        root: xcb::x::Window,
+        config: &Rc<RefCell<Config>>,
+    ) -> Vec<Screen> {
         let total_screens = conn
             .wait_for_reply(conn.send_request(&randr::GetMonitors {
                 window: root,
@@ -241,16 +249,40 @@ impl Lucky {
             }))
             .expect("failed to get monitors");
 
-        let mut screens = total_screens
+        let screens = total_screens
             .monitors()
             .map(Into::into)
-            .collect::<Vec<Position>>();
-
-        // we sort by x so its easier to know which monitors are to the left and right
-        screens.sort_by(|a, b| a.x.cmp(&b.x));
+            .collect::<Vec<Position>>()
+            .into_iter()
+            .map(|pos| (create_virtual_root(conn, &pos, root), pos))
+            .map(|(root, position)| Screen::new(config, position, root))
+            .collect::<Vec<_>>();
 
         screens
     }
+}
+
+fn create_virtual_root(
+    conn: &Arc<xcb::Connection>,
+    pos: &Position,
+    root: xcb::x::Window,
+) -> xcb::x::Window {
+    let virtual_root = conn.generate_id();
+    conn.send_and_check_request(&xcb::x::CreateWindow {
+        depth: xcb::x::COPY_FROM_PARENT as u8,
+        wid: virtual_root,
+        parent: root,
+        x: pos.x as i16,
+        y: pos.y as i16,
+        width: pos.width as u16,
+        height: pos.height as u16,
+        visual: xcb::x::COPY_FROM_PARENT,
+        border_width: 0,
+        class: xcb::x::WindowClass::InputOutput,
+        value_list: &[],
+    })
+    .expect("failed to create virtual root for monitors");
+    virtual_root
 }
 
 impl From<&xcb::randr::MonitorInfo> for Position {

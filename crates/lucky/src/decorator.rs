@@ -13,8 +13,12 @@ impl Decorator {
         Decorator { conn, config }
     }
 
-    pub fn decorate_client(&self, client: xcb::x::Window) -> anyhow::Result<xcb::x::Window> {
-        let frame = self.create_frame()?;
+    pub fn decorate_client(
+        &self,
+        client: xcb::x::Window,
+        root: xcb::x::Window,
+    ) -> anyhow::Result<xcb::x::Window> {
+        let frame = self.create_frame(root)?;
         self.reparent_client(frame, client)?;
         Ok(frame)
     }
@@ -31,30 +35,23 @@ impl Decorator {
         Ok(())
     }
 
-    fn create_frame(&self) -> anyhow::Result<xcb::x::Window> {
+    fn create_frame(&self, root: xcb::x::Window) -> anyhow::Result<xcb::x::Window> {
         let frame = self.conn.generate_id();
-
-        let root = self
-            .conn
-            .get_setup()
-            .roots()
-            .next()
-            .expect("should have at least one screen to manage");
 
         self.conn
             .check_request(self.conn.send_request_checked(&xcb::x::CreateWindow {
                 depth: xcb::x::COPY_FROM_PARENT as u8,
                 wid: frame,
-                parent: root.root(),
+                parent: root,
                 x: 0,
                 y: 0,
                 width: 1,
                 height: 1,
                 border_width: self.config.borrow().border_width(),
                 class: xcb::x::WindowClass::InputOutput,
-                visual: root.root_visual(),
+                visual: xcb::x::COPY_FROM_PARENT,
                 value_list: &[
-                    xcb::x::Cw::BackPixel(root.black_pixel()),
+                    xcb::x::Cw::BackPixel(0),
                     xcb::x::Cw::BorderPixel(self.config.borrow().border_color()),
                     xcb::x::Cw::EventMask(
                         xcb::x::EventMask::EXPOSURE

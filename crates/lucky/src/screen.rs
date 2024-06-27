@@ -85,12 +85,14 @@ pub struct Screen {
     reserved_bottom_area: u32,
     reserved_top_area: u32,
     reserved_right_area: u32,
+    root: xcb::x::Window,
 }
 
 impl Screen {
-    pub fn new(config: &Rc<RefCell<Config>>, position: Position) -> Self {
+    pub fn new(config: &Rc<RefCell<Config>>, position: Position, root: xcb::x::Window) -> Self {
         Screen {
             position,
+            root,
             active_workspace: 0,
             reserved_left_area: 0,
             reserved_bottom_area: 0,
@@ -127,7 +129,7 @@ impl Screen {
         self.workspaces[self.active_workspace as usize].focused_client
     }
 
-    pub fn workspaces(&mut self) -> &[Workspace] {
+    pub fn workspaces(&self) -> &[Workspace] {
         &self.workspaces
     }
 
@@ -181,5 +183,9 @@ impl Screen {
         let width = self.position.width - self.reserved_left_area - self.reserved_right_area;
         let height = self.position.height - self.reserved_top_area - self.reserved_bottom_area;
         Position::new(x, y, width, height)
+    }
+
+    pub fn root(&self) -> xcb::x::Window {
+        self.root
     }
 }

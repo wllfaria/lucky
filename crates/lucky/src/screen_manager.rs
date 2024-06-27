@@ -2,6 +2,8 @@ use crate::screen::{Client, Screen};
 use config::Config;
 use std::{cell::RefCell, collections::HashMap, ops::Add, rc::Rc};
 
+use std::sync::Arc;
+
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Position {
     pub x: i32,
@@ -66,18 +68,11 @@ pub struct ScreenManager {
 }
 
 impl ScreenManager {
-    pub fn new(screen_positions: Vec<Position>, config: Rc<RefCell<Config>>) -> Self {
-        assert!(
-            !screen_positions.is_empty(),
-            "should have at least one screen"
-        );
+    pub fn new(screens: Vec<Screen>, config: Rc<RefCell<Config>>) -> Self {
         ScreenManager {
             active_screen: 0,
             clients: HashMap::new(),
-            screens: screen_positions
-                .into_iter()
-                .map(|pos| Screen::new(&config, pos))
-                .collect(),
+            screens,
             config,
         }
     }
@@ -244,6 +239,62 @@ impl ScreenManager {
             }
         });
     }
+
+    fn replace_atom<T>(
+        &self,
+        conn: &Arc<xcb::Connection>,
+        screen: &Screen,
+        property: xcb::x::Atom,
+        r#type: xcb::x::Atom,
+        data: &[T],
+    ) -> anyhow::Result<()>
+    where
+        T: xcb::x::PropEl + Sized,
+    {
+        conn.send_and_check_request(&xcb::x::ChangeProperty {
+            window: screen.root(),
+            mode: xcb::x::PropMode::Replace,
+            r#type,
+            property,
+            data,
+        })?;
+
+        Ok(())
+    }
+
+    pub fn update_atoms(
+        &self,
+        atoms: &crate::atoms::Atoms,
+        screen: &Screen,
+        conn: &Arc<xcb::Connection>,
+    ) {
+        self.replace_atom(
+            conn,
+            screen,
+            atoms.net_number_of_desktops,
+            xcb::x::ATOM_CARDINAL,
+            &[screen.workspaces().len() as u32],
+        )
+        .expect("failed to update atoms");
+
+        self.replace_atom(
+            conn,
+            screen,
+            atoms.net_current_desktop,
+            xcb::x::ATOM_CARDINAL,
+            &[screen.workspaces().len() as u32],
+        )
+        .expect("failed to update atoms");
+
+        //conn.send_and_check_request(&ChangeProperty {
+        //    window: root,
+        //    mode: x::PropMode::Replace,
+        //    r#type: xcb::x::ATOM_STRING,
+        //    data: b"LuckyWM",
+        //    property: xcb::x::ATOM_WM_NAME,
+        //})
+        //.expect("failed to set window manager name");
+    }
 }
 
 fn is_cursor_inside(x: i32, y: i32, position: &Position) -> bool {
@@ -264,6 +315,7 @@ fn euclidean_distance(x1: i32, y1: i32, x2: i32, y2: i32) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use xcb::XidNew;
 
     #[test]
     fn get_screen_to_left() {
@@ -287,8 +339,14 @@ mod tests {
             // screen to the top left of active screen
             Position::new(0, -1080, 1920, 1080),
         ];
-        let config = Rc::new(RefCell::new(config::Config::default()));
-        let sm = ScreenManager::new(positions, config.clone());
+        let config = Rc::new(RefCell::new(Config::default()));
+        let screens = positions
+            .clone()
+            .into_iter()
+            .enumerate()
+            .map(|(idx, pos)| Screen::new(&config, pos, unsafe { xcb::x::Window::new(idx as u32) }))
+            .collect();
+        let sm = ScreenManager::new(screens, config.clone());
 
         let idx = sm.get_relative_screen_idx(Direction::Left).unwrap();
         let expected = Position::new(0, 0, 1920, 1080);
@@ -306,7 +364,15 @@ mod tests {
         let expected = Position::new(3840, 0, 1920, 1080);
         assert!(sm.screens[idx].position() == &expected);
 
-        let sm = ScreenManager::new(vec![Position::new(1920, 0, 1920, 1080)], config);
+        let root = unsafe { xcb::x::Window::new(0) };
+        let sm = ScreenManager::new(
+            vec![Screen::new(
+                &config,
+                Position::new(1920, 0, 1920, 1080),
+                root,
+            )],
+            config,
+        );
         let idx = sm.get_relative_screen_idx(Direction::Up);
         assert!(idx.is_none());
     }

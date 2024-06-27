@@ -25,7 +25,6 @@ impl Atoms {
         let net_wm_desktop = Self::get_intern_atom(conn, b"_NET_WM_DESKTOP");
         let net_supported = Self::get_intern_atom(conn, b"_NET_SUPPORTED");
         let net_wm_strut_partial = Self::get_intern_atom(conn, b"_NET_WM_STRUT_PARTIAL");
-        tracing::debug!(" getting partial strut {net_wm_strut_partial:?}");
 
         let atoms = Atoms {
             wm_protocols,
@@ -74,6 +73,26 @@ impl Atoms {
             r#type: xcb::x::ATOM_ATOM,
             property: self.net_supported,
             data: &atoms,
+        })
+        .expect("failed to set supported atoms");
+    }
+
+    pub fn set_atom<T>(
+        &self,
+        conn: &Arc<xcb::Connection>,
+        root: xcb::x::Window,
+        property: xcb::x::Atom,
+        data: &[T],
+        r#type: xcb::x::Atom,
+    ) where
+        T: Sized + xcb::x::PropEl,
+    {
+        conn.send_and_check_request(&xcb::x::ChangeProperty {
+            window: root,
+            mode: xcb::x::PropMode::Replace,
+            r#type,
+            property,
+            data,
         })
         .expect("failed to set supported atoms");
     }
