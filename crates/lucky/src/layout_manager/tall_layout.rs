@@ -406,8 +406,8 @@ mod tests {
     fn test_client_focusing() {
         let config = Rc::new(RefCell::new(Config::default()));
         let root = unsafe { xcb::x::Window::new(0) };
-        let screen_positions = vec![Screen::new(&config, Position::new(0, 0, 100, 100), root)];
-        let mut screen_manager = ScreenManager::new(screen_positions, config);
+        let screen_positions = vec![Screen::new(&config, Position::new(0, 0, 100, 100))];
+        let mut screen_manager = ScreenManager::new(screen_positions, config, root);
 
         let (frame_a, client_a) = create_fake_client();
         let (frame_b, client_b) = create_fake_client();

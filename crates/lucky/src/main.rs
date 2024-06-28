@@ -8,6 +8,8 @@ mod lucky;
 mod screen;
 mod screen_manager;
 
+mod macros;
+
 use lucky::Lucky;
 use tracing_subscriber::FmtSubscriber;
 

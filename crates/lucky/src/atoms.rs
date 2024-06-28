@@ -1,3 +1,5 @@
+use crate::macros::*;
+
 use std::sync::Arc;
 
 pub struct Atoms {
@@ -47,13 +49,7 @@ impl Atoms {
     /// Utility function to get an internal atom from x server
     /// we use this to query EWMH atoms and commonly used atoms at startup time to be reused later
     fn get_intern_atom(conn: &Arc<xcb::Connection>, name: &[u8]) -> xcb::x::Atom {
-        let cookie = conn.send_request(&xcb::x::InternAtom {
-            only_if_exists: false,
-            name,
-        });
-        let reply = conn
-            .wait_for_reply(cookie)
-            .expect("we failed to get an internal atom");
+        let reply = xcb_intern_atom!(conn, name);
         reply.atom()
     }
 
@@ -67,14 +63,8 @@ impl Atoms {
             self.net_wm_desktop,
         ];
 
-        conn.send_and_check_request(&xcb::x::ChangeProperty {
-            window: root,
-            mode: xcb::x::PropMode::Replace,
-            r#type: xcb::x::ATOM_ATOM,
-            property: self.net_supported,
-            data: &atoms,
-        })
-        .expect("failed to set supported atoms");
+        xcb_change_prop!(conn, root, xcb::x::ATOM_ATOM, self.net_supported, &atoms)
+            .expect("failed to set supported atoms");
     }
 
     pub fn set_atom<T>(
@@ -87,13 +77,7 @@ impl Atoms {
     ) where
         T: Sized + xcb::x::PropEl,
     {
-        conn.send_and_check_request(&xcb::x::ChangeProperty {
-            window: root,
-            mode: xcb::x::PropMode::Replace,
-            r#type,
-            property,
-            data,
-        })
-        .expect("failed to set supported atoms");
+        xcb_change_prop!(conn, root, r#type, property, data)
+            .expect("failed to set supported atoms");
     }
 }

@@ -20,6 +20,7 @@ impl Handler for ActionHandler {
             }) {
                 use AvailableActions::*;
                 match action.action() {
+                    Quit => std::process::exit(1),
                     Close => self.handle_close(&context)?,
                     FocusLeft => self.handle_focus_client(&context, Direction::Left)?,
                     FocusDown => self.handle_focus_client(&context, Direction::Down)?,

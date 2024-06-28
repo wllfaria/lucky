@@ -10,7 +10,7 @@ impl MapWindowHandler {
     fn setup_reserved_client(
         &self,
         values: &[u32],
-        context: EventContext<xcb::x::MapRequestEvent>,
+        context: &EventContext<xcb::x::MapRequestEvent>,
     ) {
         // this is the order that the values come for some reason, dont
         // ask me, i didn't make this decision, its on the spec.
@@ -105,14 +105,15 @@ impl Handler for MapWindowHandler {
         // reserved client.
         let is_reserving_space = context.conn.wait_for_reply(cookie).unwrap();
         if let Some(values) = is_reserving_space.value::<u32>().get(0..12) {
-            self.setup_reserved_client(values, context);
+            self.setup_reserved_client(values, &context);
+            context
+                .layout_manager
+                .display_screens(&context.screen_manager, context.decorator)
+                .ok();
             return Ok(());
         }
 
-        let screen_manager = context.screen_manager.borrow();
-        let active_screen_idx = screen_manager.active_screen_idx();
-        let screen = screen_manager.screen(active_screen_idx);
-        let frame = context.decorator.decorate_client(window, screen.root())?;
+        let frame = context.decorator.decorate_client(window)?;
 
         match context.layout_manager.enable_client_events(window) {
             Ok(_) => tracing::info!("enabled events for window: {:?}", window),

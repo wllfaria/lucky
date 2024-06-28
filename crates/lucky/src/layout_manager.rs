@@ -1,5 +1,6 @@
 mod tall_layout;
 
+use crate::macros::*;
 use crate::{
     atoms::Atoms,
     decorator::Decorator,
@@ -23,14 +24,15 @@ impl LayoutManager {
     }
 
     pub fn enable_client_events(&self, window: xcb::x::Window) -> anyhow::Result<()> {
-        self.conn.send_request(&xcb::x::ChangeWindowAttributes {
+        xcb_change_attr!(
+            self.conn,
             window,
-            value_list: &[(xcb::x::Cw::EventMask(
+            &[(xcb::x::Cw::EventMask(
                 xcb::x::EventMask::PROPERTY_CHANGE
                     | xcb::x::EventMask::SUBSTRUCTURE_NOTIFY
                     | xcb::x::EventMask::ENTER_WINDOW,
-            ))],
-        });
+            ))]
+        );
 
         Ok(())
     }
@@ -191,8 +193,7 @@ impl LayoutManager {
     }
 
     fn hide_client(&self, client: &xcb::x::Window) {
-        self.conn
-            .send_request(&xcb::x::UnmapWindow { window: *client });
+        xcb_unmap_win!(self.conn, *client);
     }
 
     /// Closes an open client.
@@ -202,25 +203,15 @@ impl LayoutManager {
     /// we can close by sending a `ClientMessageEvent`, otherwise we have to manually close
     /// it through the `DestroyWindow` event.
     pub fn close_client(&self, client: Client, atoms: &Atoms) -> anyhow::Result<()> {
-        let cookie = self.conn.send_request(&xcb::x::GetProperty {
-            delete: false,
-            window: client.window,
-            property: atoms.wm_protocols,
-            r#type: xcb::x::ATOM_ATOM,
-            long_offset: 0,
-            long_length: 1024,
-        });
-        let supports_wm_delete_window = match self.conn.wait_for_reply(cookie) {
-            Ok(protocols) => {
-                let protocol_atoms: &[xcb::x::Atom] = protocols.value();
-                protocol_atoms
-                    .iter()
-                    .any(|&atom| atom == atoms.wm_delete_window)
-            }
-            // if we fail to fetch the property from the client for some reason, we just destroy
-            // the frame, as we don't want to have a dirty state
-            Err(_) => false,
-        };
+        let supports_wm_delete_window =
+            xcb_get_prop!(self.conn, client.window, atoms.wm_protocols, 1024)
+                .map(|cookie| {
+                    cookie
+                        .value::<xcb::x::Atom>()
+                        .iter()
+                        .any(|&atom| atom == atoms.wm_delete_window)
+                })
+                .unwrap_or(false);
 
         if supports_wm_delete_window {
             let event = xcb::x::ClientMessageEvent::new(
@@ -235,20 +226,14 @@ impl LayoutManager {
                 ]),
             );
 
-            self.conn.send_request(&xcb::x::SendEvent {
-                propagate: false,
-                destination: xcb::x::SendEventDest::Window(client.window),
-                event_mask: xcb::x::EventMask::NO_EVENT,
-                event: &event,
-            });
-
-            self.conn.send_request(&xcb::x::DestroyWindow {
-                window: client.frame,
-            });
+            xcb_send_event!(
+                self.conn,
+                xcb::x::SendEventDest::Window(client.window),
+                &event
+            );
+            xcb_destroy_win!(self.conn, client.frame);
         } else {
-            self.conn.send_request(&xcb::x::DestroyWindow {
-                window: client.frame,
-            });
+            xcb_destroy_win!(self.conn, client.frame);
         }
 
         Ok(())

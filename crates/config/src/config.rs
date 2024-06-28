@@ -128,6 +128,8 @@ pub enum AvailableActions {
     MoveRight,
     /// closes the focused client
     Close,
+    /// Exits lucky
+    Quit,
     /// Reloads the configuration file
     Reload,
     /// switches to workspace 1

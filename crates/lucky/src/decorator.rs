@@ -1,3 +1,4 @@
+use crate::macros::*;
 use config::Config;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
@@ -13,30 +14,21 @@ impl Decorator {
         Decorator { conn, config }
     }
 
-    pub fn decorate_client(
-        &self,
-        client: xcb::x::Window,
-        root: xcb::x::Window,
-    ) -> anyhow::Result<xcb::x::Window> {
-        let frame = self.create_frame(root)?;
-        self.reparent_client(frame, client)?;
+    pub fn decorate_client(&self, client: xcb::x::Window) -> anyhow::Result<xcb::x::Window> {
+        let frame = self.create_frame()?;
+        xcb_reparent_win!(self.conn, client, frame)?;
         Ok(frame)
     }
 
-    fn reparent_client(&self, frame: xcb::x::Window, client: xcb::x::Window) -> anyhow::Result<()> {
-        self.conn
-            .check_request(self.conn.send_request_checked(&xcb::x::ReparentWindow {
-                window: client,
-                parent: frame,
-                x: 0,
-                y: 0,
-            }))?;
-
-        Ok(())
-    }
-
-    fn create_frame(&self, root: xcb::x::Window) -> anyhow::Result<xcb::x::Window> {
+    fn create_frame(&self) -> anyhow::Result<xcb::x::Window> {
         let frame = self.conn.generate_id();
+        let root = self
+            .conn
+            .get_setup()
+            .roots()
+            .next()
+            .expect("should have at least one screen to manage")
+            .root();
 
         self.conn
             .check_request(self.conn.send_request_checked(&xcb::x::CreateWindow {
@@ -68,25 +60,23 @@ impl Decorator {
     }
 
     pub fn unfocus_client(&self, client: &Client) -> anyhow::Result<()> {
-        self.conn.send_request(&xcb::x::ChangeWindowAttributes {
-            window: client.frame,
-            value_list: &[xcb::x::Cw::BorderPixel(self.config.borrow().border_color())],
-        });
+        xcb_change_attr!(
+            self.conn,
+            client.frame,
+            &[xcb::x::Cw::BorderPixel(self.config.borrow().border_color())]
+        );
         Ok(())
     }
 
     pub fn focus_client(&self, client: &Client) -> anyhow::Result<()> {
-        self.conn.send_request(&xcb::x::ChangeWindowAttributes {
-            window: client.frame,
-            value_list: &[xcb::x::Cw::BorderPixel(
-                self.config.borrow().active_border_color(),
-            )],
-        });
-        self.conn.send_request(&xcb::x::SetInputFocus {
-            time: xcb::x::CURRENT_TIME,
-            focus: client.window,
-            revert_to: xcb::x::InputFocus::Parent,
-        });
+        xcb_change_attr!(
+            self.conn,
+            client.frame,
+            &[xcb::x::Cw::BorderPixel(
+                self.config.borrow().active_border_color()
+            )]
+        );
+        xcb_input_focus!(self.conn, client.window);
 
         Ok(())
     }

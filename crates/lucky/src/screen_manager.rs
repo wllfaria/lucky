@@ -1,3 +1,4 @@
+use crate::macros::*;
 use crate::screen::{Client, Screen};
 use config::Config;
 use std::{cell::RefCell, collections::HashMap, ops::Add, rc::Rc};
@@ -63,14 +64,16 @@ pub enum Direction {
 pub struct ScreenManager {
     screens: Vec<Screen>,
     clients: HashMap<xcb::x::Window, Client>,
+    root: xcb::x::Window,
     active_screen: usize,
     config: Rc<RefCell<Config>>,
 }
 
 impl ScreenManager {
-    pub fn new(screens: Vec<Screen>, config: Rc<RefCell<Config>>) -> Self {
+    pub fn new(screens: Vec<Screen>, config: Rc<RefCell<Config>>, root: xcb::x::Window) -> Self {
         ScreenManager {
             active_screen: 0,
+            root,
             clients: HashMap::new(),
             screens,
             config,
@@ -240,60 +243,25 @@ impl ScreenManager {
         });
     }
 
-    fn replace_atom<T>(
-        &self,
-        conn: &Arc<xcb::Connection>,
-        screen: &Screen,
-        property: xcb::x::Atom,
-        r#type: xcb::x::Atom,
-        data: &[T],
-    ) -> anyhow::Result<()>
-    where
-        T: xcb::x::PropEl + Sized,
-    {
-        conn.send_and_check_request(&xcb::x::ChangeProperty {
-            window: screen.root(),
-            mode: xcb::x::PropMode::Replace,
-            r#type,
-            property,
-            data,
-        })?;
-
-        Ok(())
-    }
-
-    pub fn update_atoms(
-        &self,
-        atoms: &crate::atoms::Atoms,
-        screen: &Screen,
-        conn: &Arc<xcb::Connection>,
-    ) {
-        self.replace_atom(
+    pub fn update_atoms(&self, atoms: &crate::atoms::Atoms, conn: &Arc<xcb::Connection>) {
+        let screen = &self.screens[self.active_screen];
+        xcb_change_prop!(
             conn,
-            screen,
+            self.root,
+            xcb::x::ATOM_CARDINAL,
             atoms.net_number_of_desktops,
-            xcb::x::ATOM_CARDINAL,
-            &[screen.workspaces().len() as u32],
+            &[screen.workspaces().len() as u32]
         )
         .expect("failed to update atoms");
 
-        self.replace_atom(
+        xcb_change_prop!(
             conn,
-            screen,
-            atoms.net_current_desktop,
+            self.root,
             xcb::x::ATOM_CARDINAL,
-            &[screen.workspaces().len() as u32],
+            atoms.net_current_desktop,
+            &[screen.active_workspace_id() as u32]
         )
         .expect("failed to update atoms");
-
-        //conn.send_and_check_request(&ChangeProperty {
-        //    window: root,
-        //    mode: x::PropMode::Replace,
-        //    r#type: xcb::x::ATOM_STRING,
-        //    data: b"LuckyWM",
-        //    property: xcb::x::ATOM_WM_NAME,
-        //})
-        //.expect("failed to set window manager name");
     }
 }
 
@@ -343,10 +311,10 @@ mod tests {
         let screens = positions
             .clone()
             .into_iter()
-            .enumerate()
-            .map(|(idx, pos)| Screen::new(&config, pos, unsafe { xcb::x::Window::new(idx as u32) }))
+            .map(|pos| Screen::new(&config, pos))
             .collect();
-        let sm = ScreenManager::new(screens, config.clone());
+        let root = unsafe { xcb::x::Window::new(0) };
+        let sm = ScreenManager::new(screens, config.clone(), root);
 
         let idx = sm.get_relative_screen_idx(Direction::Left).unwrap();
         let expected = Position::new(0, 0, 1920, 1080);
@@ -366,12 +334,9 @@ mod tests {
 
         let root = unsafe { xcb::x::Window::new(0) };
         let sm = ScreenManager::new(
-            vec![Screen::new(
-                &config,
-                Position::new(1920, 0, 1920, 1080),
-                root,
-            )],
+            vec![Screen::new(&config, Position::new(1920, 0, 1920, 1080))],
             config,
+            root,
         );
         let idx = sm.get_relative_screen_idx(Direction::Up);
         assert!(idx.is_none());

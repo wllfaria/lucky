@@ -43,12 +43,9 @@ impl Lucky {
         let root = Self::setup(&conn);
         let atoms = Atoms::new(&conn, root);
         let screens = Self::get_monitors(&conn, root, &config);
-        let screen_manager = ScreenManager::new(screens, config.clone());
-
-        for screen in screen_manager.screens() {
-            screen_manager.update_atoms(&atoms, screen, &conn);
-        }
-
+        let screen_manager = ScreenManager::new(screens, config.clone(), root);
+        screen_manager.update_atoms(&atoms, &conn);
+        conn.flush().expect("failed to flush the connection");
         execute_auto_commands(config.borrow().startup_commands())?;
 
         Ok(Lucky {
@@ -254,35 +251,11 @@ impl Lucky {
             .map(Into::into)
             .collect::<Vec<Position>>()
             .into_iter()
-            .map(|pos| (create_virtual_root(conn, &pos, root), pos))
-            .map(|(root, position)| Screen::new(config, position, root))
+            .map(|position| Screen::new(config, position))
             .collect::<Vec<_>>();
 
         screens
     }
-}
-
-fn create_virtual_root(
-    conn: &Arc<xcb::Connection>,
-    pos: &Position,
-    root: xcb::x::Window,
-) -> xcb::x::Window {
-    let virtual_root = conn.generate_id();
-    conn.send_and_check_request(&xcb::x::CreateWindow {
-        depth: xcb::x::COPY_FROM_PARENT as u8,
-        wid: virtual_root,
-        parent: root,
-        x: pos.x as i16,
-        y: pos.y as i16,
-        width: pos.width as u16,
-        height: pos.height as u16,
-        visual: xcb::x::COPY_FROM_PARENT,
-        border_width: 0,
-        class: xcb::x::WindowClass::InputOutput,
-        value_list: &[],
-    })
-    .expect("failed to create virtual root for monitors");
-    virtual_root
 }
 
 impl From<&xcb::randr::MonitorInfo> for Position {
