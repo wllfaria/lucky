@@ -1,7 +1,7 @@
 use crate::event::EventContext;
 use crate::handlers::handler::Handler;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct HoverHandler {}
 
 impl Handler for HoverHandler {
@@ -16,6 +16,11 @@ impl Handler for HoverHandler {
                 .layout_manager
                 .display_screens(&context.screen_manager, context.decorator)?;
         }
+
+        context
+            .screen_manager
+            .borrow_mut()
+            .update_atoms(context.atoms, &context.conn);
 
         Ok(())
     }

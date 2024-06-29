@@ -1,8 +1,11 @@
+use anyhow::Context;
 use config::Config;
 
 use crate::decorator::Decorator;
+use crate::position::Position;
 use crate::screen::{Client, Screen};
-use crate::screen_manager::{Direction, Position, ScreenManager};
+use crate::screen_manager::{Direction, ScreenManager};
+use crate::xcb_utils::xcb_map_win;
 
 use std::cell::RefCell;
 use std::ops::{Add, Div, Mul, Sub};
@@ -37,12 +40,9 @@ impl TallLayout {
         }
 
         for (i, client) in clients.iter().enumerate() {
-            match decorator.unfocus_client(client) {
-                Ok(_) => tracing::info!("removed focus from client: {:?}", client),
-                Err(e) => {
-                    return Err(e);
-                }
-            }
+            decorator
+                .unfocus_client(client)
+                .context("failed to unfocus client")?;
             match i {
                 0 => Self::display_main_client(conn, client, &available_area, main_width, config),
                 _ => Self::display_side_client(
@@ -92,21 +92,11 @@ impl TallLayout {
                 .sub(config.borrow().border_width() as u32),
         );
 
-        tracing::debug!(
-            "displaying main client with frame at: {frame_position}, client at: {client_position}"
-        );
-
         Self::configure_window(conn, client.frame, frame_position);
         Self::configure_window(conn, client.window, client_position);
 
-        tracing::debug!("configured window and frame");
-
-        conn.send_request(&xcb::x::MapWindow {
-            window: client.window,
-        });
-        conn.send_request(&xcb::x::MapWindow {
-            window: client.frame,
-        });
+        xcb_map_win!(conn, client.window);
+        xcb_map_win!(conn, client.frame);
     }
 
     fn display_side_client(
@@ -142,12 +132,9 @@ impl TallLayout {
             client.window,
             Position::new(0, 0, width.sub(border_double), height),
         );
-        conn.send_request(&xcb::x::MapWindow {
-            window: client.window,
-        });
-        conn.send_request(&xcb::x::MapWindow {
-            window: client.frame,
-        });
+
+        xcb_map_win!(conn, client.window);
+        xcb_map_win!(conn, client.frame);
     }
 
     fn is_first(screen: &mut Screen, client: xcb::x::Window) -> bool {
@@ -166,124 +153,136 @@ impl TallLayout {
             .is_some_and(|focused| focused.eq(&client))
     }
 
-    fn swap_first(screen: &mut Screen, client: xcb::x::Window) {
+    fn swap_first(screen: &mut Screen, client: xcb::x::Window) -> anyhow::Result<()> {
         let index = screen
             .active_workspace()
             .clients()
             .iter()
             .position(|c| c.eq(&client))
-            .expect("workspace clients vector should include selected client");
+            .context("workspace clients vector should include selected client")?;
 
         screen.active_workspace_mut().clients_mut().swap(index, 0);
+        Ok(())
     }
 
-    fn swap_prev(screen: &mut Screen, client: xcb::x::Window) {
+    fn swap_prev(screen: &mut Screen, client: xcb::x::Window) -> anyhow::Result<()> {
         let index = screen
             .active_workspace()
             .clients()
             .iter()
             .position(|c| c.eq(&client))
-            .expect("workspace clients vector should include selected client");
+            .context("workspace clients vector should include selected client")?;
 
         screen
             .active_workspace_mut()
             .clients_mut()
             .swap(index, index.sub(1));
+
+        Ok(())
     }
 
-    fn swap_next(screen: &mut Screen, client: xcb::x::Window) {
+    fn swap_next(screen: &mut Screen, client: xcb::x::Window) -> anyhow::Result<()> {
         let index = screen
             .active_workspace()
             .clients()
             .iter()
             .position(|c| c.eq(&client))
-            .expect("workspace clients vector should include selected client");
+            .context("workspace clients vector should include selected client")?;
 
         screen
             .active_workspace_mut()
             .clients_mut()
             .swap(index, index.add(1));
+
+        Ok(())
     }
 
-    fn focus_first(screen: &mut Screen, _: xcb::x::Window) {
+    fn focus_first(screen: &mut Screen, _: xcb::x::Window) -> anyhow::Result<xcb::x::Window> {
         let first_client = screen
             .active_workspace()
             .clients()
             .first()
             .copied()
-            .expect("tried to focus a client on an empty workspace");
+            .context("tried to focus a client on an empty workspace")?;
         screen
             .active_workspace_mut()
             .set_focused_client(Some(first_client));
+
+        Ok(first_client)
     }
 
-    fn focus_last(screen: &mut Screen, _: xcb::x::Window) {
+    fn focus_last(screen: &mut Screen, _: xcb::x::Window) -> anyhow::Result<xcb::x::Window> {
         let last_client = screen
             .active_workspace()
             .clients()
             .last()
             .copied()
-            .expect("tried to focus a client on an empty workspace");
+            .context("tried to focus a client on an empty workspace")?;
         screen
             .active_workspace_mut()
             .set_focused_client(Some(last_client));
+
+        Ok(last_client)
     }
 
-    fn focus_prev(screen: &mut Screen, client: xcb::x::Window) {
+    fn focus_prev(screen: &mut Screen, client: xcb::x::Window) -> anyhow::Result<xcb::x::Window> {
         let index = screen
             .active_workspace()
             .clients()
             .iter()
             .position(|c| c.eq(&client))
-            .expect("workspace clients vector should include selected client");
+            .context("workspace clients vector should include selected client")?;
 
         let client = screen
             .active_workspace()
             .clients()
             .get(index.sub(1))
             .copied()
-            .expect("should have a next client at this point");
+            .context("should have a next client at this point")?;
 
         screen
             .active_workspace_mut()
             .set_focused_client(Some(client));
+
+        Ok(client)
     }
 
-    fn focus_next(screen: &mut Screen, client: xcb::x::Window) {
+    fn focus_next(screen: &mut Screen, client: xcb::x::Window) -> anyhow::Result<xcb::x::Window> {
         let index = screen
             .active_workspace()
             .clients()
             .iter()
             .position(|c| c.eq(&client))
-            .expect("workspace clients vector should include selected client");
+            .context("workspace clients vector should include selected client")?;
 
         let client = screen
             .active_workspace()
             .clients()
             .get(index.add(1))
             .copied()
-            .expect("should have a next client at this point");
+            .context("should have a next client at this point")?;
 
         screen
             .active_workspace_mut()
             .set_focused_client(Some(client));
+
+        Ok(client)
     }
 
-    pub fn focus_client(screen_manager: &mut ScreenManager, direction: Direction) {
+    pub fn focus_client(
+        screen_manager: &mut ScreenManager,
+        direction: Direction,
+    ) -> anyhow::Result<Option<(xcb::x::Window, xcb::x::Window)>> {
         let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
 
         if screen.active_workspace().clients().is_empty() {
-            return;
+            return Ok(None);
         }
 
         let client = screen
             .focused_client()
-            .expect("tried to get the focused client when there was none");
-
-        if screen.focused_client().is_none() {
-            return;
-        }
+            .context("tried to get the focused client when there was none")?;
 
         let should_change_screen = match direction {
             Direction::Left => Self::is_first(screen, client),
@@ -294,50 +293,55 @@ impl TallLayout {
 
         if should_change_screen {
             let Some(new_screen) = screen_manager.get_relative_screen_idx(direction) else {
-                return;
+                return Ok(None);
             };
 
             screen_manager.set_active_screen(new_screen);
             let screen = screen_manager.screen_mut(index);
 
-            match direction {
-                Direction::Left => Self::focus_first(screen, client),
-                Direction::Down => Self::focus_first(screen, client),
-                Direction::Up => Self::focus_last(screen, client),
-                Direction::Right => Self::focus_last(screen, client),
-            }
+            let focused_client = match direction {
+                Direction::Left => Self::focus_first(screen, client)?,
+                Direction::Down => Self::focus_first(screen, client)?,
+                Direction::Up => Self::focus_last(screen, client)?,
+                Direction::Right => Self::focus_last(screen, client)?,
+            };
 
-            return;
+            return Ok(Some((client, focused_client)));
         }
 
-        match direction {
-            Direction::Left => Self::focus_first(screen, client),
-            Direction::Down => Self::focus_next(screen, client),
-            Direction::Up => Self::focus_prev(screen, client),
-            Direction::Right => Self::focus_next(screen, client),
-        }
+        let focused_client = match direction {
+            Direction::Left => Self::focus_first(screen, client)?,
+            Direction::Down => Self::focus_next(screen, client)?,
+            Direction::Up => Self::focus_prev(screen, client)?,
+            Direction::Right => Self::focus_next(screen, client)?,
+        };
+
+        Ok(Some((client, focused_client)))
     }
 
-    pub fn move_client(screen_manager: &mut ScreenManager, direction: Direction) {
+    pub fn move_client(
+        screen_manager: &mut ScreenManager,
+        direction: Direction,
+    ) -> anyhow::Result<Option<xcb::x::Window>> {
         let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
 
         if screen.active_workspace().clients().is_empty() {
-            return;
+            return Ok(None);
         }
 
         let client = screen
             .focused_client()
-            .expect("tried to get the focused client when there was none");
+            .context("tried to get the focused client when there was none")?;
 
         if screen.focused_client().is_none() {
-            match direction {
-                Direction::Left => Self::focus_last(screen, client),
-                Direction::Down => Self::focus_first(screen, client),
-                Direction::Up => Self::focus_last(screen, client),
-                Direction::Right => Self::focus_first(screen, client),
-            }
-            return;
+            let focused_client = match direction {
+                Direction::Left => Self::focus_last(screen, client)?,
+                Direction::Down => Self::focus_first(screen, client)?,
+                Direction::Up => Self::focus_last(screen, client)?,
+                Direction::Right => Self::focus_first(screen, client)?,
+            };
+            return Ok(Some(focused_client));
         }
 
         let should_change_screen = match direction {
@@ -349,7 +353,7 @@ impl TallLayout {
 
         if should_change_screen {
             let Some(new_screen) = screen_manager.get_relative_screen_idx(direction) else {
-                return;
+                return Ok(None);
             };
 
             screen_manager
@@ -362,15 +366,17 @@ impl TallLayout {
                 .active_workspace_mut()
                 .new_client(client);
 
-            return;
+            return Ok(None);
         }
 
         match direction {
-            Direction::Left => Self::swap_first(screen, client),
-            Direction::Down => Self::swap_next(screen, client),
-            Direction::Up => Self::swap_prev(screen, client),
-            Direction::Right => Self::swap_next(screen, client),
-        }
+            Direction::Left => Self::swap_first(screen, client)?,
+            Direction::Down => Self::swap_next(screen, client)?,
+            Direction::Up => Self::swap_prev(screen, client)?,
+            Direction::Right => Self::swap_next(screen, client)?,
+        };
+
+        Ok(None)
     }
 
     fn configure_window(conn: &Arc<xcb::Connection>, window: xcb::x::Window, client_pos: Position) {
@@ -428,7 +434,7 @@ mod tests {
         // │          ││ selected │
         // └──────────┘└──────────┘
         // select the second one
-        TallLayout::focus_client(&mut screen_manager, Direction::Right);
+        TallLayout::focus_client(&mut screen_manager, Direction::Right).unwrap();
         let screen = screen_manager.screen_mut(0);
         assert!(screen.focused_client().eq(&Some(frame_b)));
 
@@ -436,7 +442,7 @@ mod tests {
         // │          ││ selected │
         // └──────────┘└──────────┘
         // since we are at the last, it should do nothing and return Unhandled
-        TallLayout::focus_client(&mut screen_manager, Direction::Right);
+        TallLayout::focus_client(&mut screen_manager, Direction::Right).unwrap();
         let screen = screen_manager.screen_mut(0);
         assert!(screen.focused_client().eq(&Some(frame_b)));
 
@@ -444,7 +450,7 @@ mod tests {
         // │ selected ││          │
         // └──────────┘└──────────┘
         // set the first one to be selected
-        TallLayout::focus_client(&mut screen_manager, Direction::Left);
+        TallLayout::focus_client(&mut screen_manager, Direction::Left).unwrap();
         let screen = screen_manager.screen_mut(0);
         assert!(screen.focused_client().eq(&Some(frame_a)));
 
@@ -452,7 +458,7 @@ mod tests {
         // │ selected ││          │
         // └──────────┘└──────────┘
         // similarly, when at the first, should do nothing and return unhandled
-        TallLayout::focus_client(&mut screen_manager, Direction::Left);
+        TallLayout::focus_client(&mut screen_manager, Direction::Left).unwrap();
         let screen = screen_manager.screen_mut(0);
         assert!(screen.focused_client().eq(&Some(frame_a)));
     }

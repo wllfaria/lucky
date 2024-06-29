@@ -78,7 +78,7 @@ pub fn load_config() -> Config {
         }
         Err(_) => get_config_dir_path(),
     };
-    let config = match config_path
+    match config_path
         .map(load_config_from_file)
         .unwrap_or(Ok(Config::default()))
     {
@@ -87,12 +87,7 @@ pub fn load_config() -> Config {
             tracing::error!("{e:?}");
             Config::default()
         }
-    };
-
-    tracing::debug!("loaded config with {} actions", config.actions.len());
-    tracing::debug!("loaded config with {} commands", config.commands.len());
-
-    config
+    }
 }
 
 fn data_dir() -> anyhow::Result<PathBuf> {

@@ -3,13 +3,35 @@ use crate::{event::EventContext, handlers::Handler};
 #[derive(Debug, Default)]
 pub struct UnmapWindowHandler {}
 
-impl Handler for UnmapWindowHandler {
-    fn on_unmap_notify(
-        &mut self,
-        context: EventContext<xcb::x::UnmapNotifyEvent>,
+impl UnmapWindowHandler {
+    fn try_unmap_reserved_client(
+        &self,
+        context: &EventContext<xcb::x::UnmapNotifyEvent>,
     ) -> anyhow::Result<()> {
         let window = context.event.window();
-        let screen_manager = context.screen_manager.borrow();
+        let mut screen_manager = context.screen_manager.borrow_mut();
+
+        for screen in screen_manager.screens_mut() {
+            let reserved_clients = screen.reserved_clients_mut();
+            let reserved_client = reserved_clients
+                .iter_mut()
+                .find(|client| client.window.eq(&window));
+            if let Some(reserved_client) = reserved_client.cloned() {
+                context
+                    .layout_manager
+                    .close_client(&reserved_client, context.atoms)?;
+                screen.sub_left_reserved_area(reserved_client.reserved_left);
+                screen.sub_bottom_reserved_area(reserved_client.reserved_bottom);
+                screen.sub_top_reserved_area(reserved_client.reserved_top);
+                screen.sub_right_reserved_area(reserved_client.reserved_right);
+            }
+        }
+        Ok(())
+    }
+
+    fn try_unmap_client(&self, context: &EventContext<xcb::x::UnmapNotifyEvent>) {
+        let window = context.event.window();
+        let mut screen_manager = context.screen_manager.borrow_mut();
 
         if let Some(client) = screen_manager
             .clients()
@@ -19,10 +41,7 @@ impl Handler for UnmapWindowHandler {
             .find(|client| client.window.eq(&window))
         {
             let frame = client.frame;
-            match context
-                .layout_manager
-                .close_client(client.clone(), context.atoms)
-            {
+            match context.layout_manager.close_client(client, context.atoms) {
                 Ok(_) => tracing::debug!("succesfully unmapped window {:?}", window),
                 // some softwares close their clients without waiting for the window manager
                 // thus making this fails, it is fine to keep going even though we coudlnt
@@ -30,9 +49,6 @@ impl Handler for UnmapWindowHandler {
                 // if it don't exist on the X server it should not exist on our state
                 Err(_) => tracing::error!("failed to unmap client {:?}", window),
             }
-
-            drop(screen_manager);
-            let mut screen_manager = context.screen_manager.borrow_mut();
 
             screen_manager.screens_mut().iter_mut().for_each(|s| {
                 s.workspaces_mut()
@@ -44,23 +60,25 @@ impl Handler for UnmapWindowHandler {
             let workspace = screen_manager.screen_mut(index).active_workspace_mut();
             workspace.set_focused_client(workspace.clients().first().copied());
         }
+    }
+}
 
-        match context
+impl Handler for UnmapWindowHandler {
+    fn on_unmap_notify(
+        &mut self,
+        context: EventContext<xcb::x::UnmapNotifyEvent>,
+    ) -> anyhow::Result<()> {
+        self.try_unmap_reserved_client(&context)?;
+        self.try_unmap_client(&context);
+
+        context
             .layout_manager
-            .display_screens(&context.screen_manager, context.decorator)
-        {
-            Ok(_) => tracing::info!(
-                "displayed all screens after unmapping a window {:?}",
-                window
-            ),
-            Err(e) => {
-                tracing::error!(
-                    "failed to display screens after unmapping a window {:?}",
-                    window
-                );
-                return Err(e);
-            }
-        }
+            .display_screens(&context.screen_manager, context.decorator)?;
+
+        context
+            .screen_manager
+            .borrow_mut()
+            .update_atoms(context.atoms, &context.conn);
 
         Ok(())
     }

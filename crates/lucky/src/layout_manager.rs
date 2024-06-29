@@ -1,12 +1,13 @@
 mod tall_layout;
+use crate::ewmh::{ewmh_set_active_window, ewmh_set_focus, EwmhFocusAction};
 
-use crate::macros::*;
+use crate::xcb_utils::*;
 use crate::{
     atoms::Atoms,
     decorator::Decorator,
     event::EventContext,
     layout_manager::tall_layout::TallLayout,
-    screen::{Client, Workspace, WorkspaceLayout},
+    screen::{Workspace, WorkspaceLayout},
     screen_manager::{Direction, ScreenManager},
 };
 use config::{AvailableActions, Config};
@@ -74,6 +75,7 @@ impl LayoutManager {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, err)]
     pub fn change_focus(
         &self,
         context: &EventContext<xcb::x::KeyPressEvent>,
@@ -84,8 +86,35 @@ impl LayoutManager {
         let screen = screen_manager.screen(active_screen_idx);
         let workspace = screen.active_workspace();
 
-        match workspace.layout() {
-            WorkspaceLayout::Tall => TallLayout::focus_client(&mut screen_manager, direction),
+        let result = match workspace.layout() {
+            WorkspaceLayout::Tall => TallLayout::focus_client(&mut screen_manager, direction)?,
+        };
+
+        if let Some((prev_client, curr_client)) = result {
+            let prev_client = screen_manager.clients().get(&prev_client).unwrap();
+            let curr_client = screen_manager.clients().get(&curr_client).unwrap();
+
+            ewmh_set_focus(
+                &context.conn,
+                context.atoms,
+                prev_client.window,
+                EwmhFocusAction::Unfocus,
+            )
+            .ok();
+            ewmh_set_focus(
+                &context.conn,
+                context.atoms,
+                curr_client.window,
+                EwmhFocusAction::Focus,
+            )
+            .ok();
+            ewmh_set_active_window(
+                &context.conn,
+                screen_manager.root(),
+                context.atoms,
+                curr_client.window,
+            )
+            .ok();
         }
 
         drop(screen_manager);
@@ -94,6 +123,7 @@ impl LayoutManager {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, err)]
     pub fn move_client(
         &self,
         context: &EventContext<xcb::x::KeyPressEvent>,
@@ -104,8 +134,26 @@ impl LayoutManager {
         let screen = screen_manager.screen(active_screen_idx);
         let workspace = screen.active_workspace();
 
-        match workspace.layout() {
-            WorkspaceLayout::Tall => TallLayout::move_client(&mut screen_manager, direction),
+        let result = match workspace.layout() {
+            WorkspaceLayout::Tall => TallLayout::move_client(&mut screen_manager, direction)?,
+        };
+
+        if let Some(focused_client) = result {
+            let focused_client = screen_manager.clients().get(&focused_client).unwrap();
+            ewmh_set_focus(
+                &context.conn,
+                context.atoms,
+                focused_client.window,
+                EwmhFocusAction::Focus,
+            )
+            .ok();
+            ewmh_set_active_window(
+                &context.conn,
+                screen_manager.root(),
+                context.atoms,
+                focused_client.window,
+            )
+            .ok();
         }
 
         drop(screen_manager);
@@ -202,9 +250,12 @@ impl LayoutManager {
     /// close it. Modern clients will usually support `WM_DELETE_WINDOW`, and in this case
     /// we can close by sending a `ClientMessageEvent`, otherwise we have to manually close
     /// it through the `DestroyWindow` event.
-    pub fn close_client(&self, client: Client, atoms: &Atoms) -> anyhow::Result<()> {
+    pub fn close_client<C>(&self, client: &C, atoms: &Atoms) -> anyhow::Result<()>
+    where
+        C: crate::screen::IntoClient,
+    {
         let supports_wm_delete_window =
-            xcb_get_prop!(self.conn, client.window, atoms.wm_protocols, 1024)
+            xcb_get_prop!(self.conn, client.get_window(), atoms.wm_protocols, 1024)
                 .map(|cookie| {
                     cookie
                         .value::<xcb::x::Atom>()
@@ -215,7 +266,7 @@ impl LayoutManager {
 
         if supports_wm_delete_window {
             let event = xcb::x::ClientMessageEvent::new(
-                client.window,
+                client.get_window(),
                 atoms.wm_protocols,
                 xcb::x::ClientMessageData::Data32([
                     atoms.wm_delete_window.resource_id(),
@@ -228,12 +279,14 @@ impl LayoutManager {
 
             xcb_send_event!(
                 self.conn,
-                xcb::x::SendEventDest::Window(client.window),
+                xcb::x::SendEventDest::Window(client.get_window()),
                 &event
             );
-            xcb_destroy_win!(self.conn, client.frame);
-        } else {
-            xcb_destroy_win!(self.conn, client.frame);
+            if let Some(frame) = client.get_frame() {
+                xcb_destroy_win!(self.conn, frame);
+            }
+        } else if let Some(frame) = client.get_frame() {
+            xcb_destroy_win!(self.conn, frame);
         }
 
         Ok(())

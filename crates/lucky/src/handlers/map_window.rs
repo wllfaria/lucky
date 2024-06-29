@@ -1,9 +1,9 @@
 use crate::event::EventContext;
 use crate::handlers::handler::Handler;
+use crate::position::Position;
 use crate::screen::ReservedClient;
-use crate::screen_manager::Position;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct MapWindowHandler {}
 
 impl MapWindowHandler {
@@ -77,6 +77,10 @@ impl MapWindowHandler {
             show_on_all_workspaces: true,
             workspace: 0,
             position,
+            reserved_left: left,
+            reserved_bottom: bottom,
+            reserved_top: top,
+            reserved_right: right,
         };
 
         screen.add_reserved_client(reserved_client);
@@ -110,6 +114,10 @@ impl Handler for MapWindowHandler {
                 .layout_manager
                 .display_screens(&context.screen_manager, context.decorator)
                 .ok();
+            context
+                .screen_manager
+                .borrow_mut()
+                .update_atoms(context.atoms, &context.conn);
             return Ok(());
         }
 
@@ -151,6 +159,11 @@ impl Handler for MapWindowHandler {
                 return Err(e);
             }
         }
+
+        context
+            .screen_manager
+            .borrow_mut()
+            .update_atoms(context.atoms, &context.conn);
 
         Ok(())
     }

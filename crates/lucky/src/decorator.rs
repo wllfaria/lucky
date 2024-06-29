@@ -1,4 +1,5 @@
-use crate::macros::*;
+use crate::position::Position;
+use crate::xcb_utils::*;
 use config::Config;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
@@ -21,7 +22,6 @@ impl Decorator {
     }
 
     fn create_frame(&self) -> anyhow::Result<xcb::x::Window> {
-        let frame = self.conn.generate_id();
         let root = self
             .conn
             .get_setup()
@@ -30,31 +30,24 @@ impl Decorator {
             .expect("should have at least one screen to manage")
             .root();
 
-        self.conn
-            .check_request(self.conn.send_request_checked(&xcb::x::CreateWindow {
-                depth: xcb::x::COPY_FROM_PARENT as u8,
-                wid: frame,
-                parent: root,
-                x: 0,
-                y: 0,
-                width: 1,
-                height: 1,
-                border_width: self.config.borrow().border_width(),
-                class: xcb::x::WindowClass::InputOutput,
-                visual: xcb::x::COPY_FROM_PARENT,
-                value_list: &[
-                    xcb::x::Cw::BackPixel(0),
-                    xcb::x::Cw::BorderPixel(self.config.borrow().border_color()),
-                    xcb::x::Cw::EventMask(
-                        xcb::x::EventMask::EXPOSURE
-                            | xcb::x::EventMask::BUTTON_PRESS
-                            | xcb::x::EventMask::BUTTON_RELEASE
-                            | xcb::x::EventMask::POINTER_MOTION
-                            | xcb::x::EventMask::ENTER_WINDOW
-                            | xcb::x::EventMask::LEAVE_WINDOW,
-                    ),
-                ],
-            }))?;
+        let frame = xcb_create_win!(
+            self.conn,
+            root,
+            Position::new(0, 0, 1, 1),
+            self.config.borrow().border_width(),
+            &[
+                xcb::x::Cw::BackPixel(0),
+                xcb::x::Cw::BorderPixel(self.config.borrow().border_color()),
+                xcb::x::Cw::EventMask(
+                    xcb::x::EventMask::EXPOSURE
+                        | xcb::x::EventMask::BUTTON_PRESS
+                        | xcb::x::EventMask::BUTTON_RELEASE
+                        | xcb::x::EventMask::POINTER_MOTION
+                        | xcb::x::EventMask::ENTER_WINDOW
+                        | xcb::x::EventMask::LEAVE_WINDOW,
+                ),
+            ],
+        );
 
         Ok(frame)
     }

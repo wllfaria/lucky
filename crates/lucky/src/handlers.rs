@@ -15,6 +15,7 @@ use map_window::MapWindowHandler;
 use property_handler::PropertyHandler;
 use unmap_window::UnmapWindowHandler;
 
+#[derive(Debug)]
 pub struct Handlers {
     handlers: Vec<Box<dyn Handler>>,
 }
@@ -35,63 +36,74 @@ impl Default for Handlers {
 }
 
 impl Handlers {
-    pub fn on_key_press(&mut self, context: EventContext<xcb::x::KeyPressEvent>) {
+    #[tracing::instrument(skip_all, err)]
+    pub fn on_key_press(
+        &mut self,
+        context: EventContext<xcb::x::KeyPressEvent>,
+    ) -> anyhow::Result<()> {
         for handler in self.handlers.iter_mut() {
-            match handler.on_key_press(context.clone()) {
-                Ok(_) => {}
-                Err(e) => tracing::error!("critical error happened: {e:?}"),
-            }
+            handler.on_key_press(context.clone())?;
         }
-        tracing::debug!("key press handled correctly");
+
+        Ok(())
     }
 
-    pub fn on_map_request(&mut self, context: EventContext<xcb::x::MapRequestEvent>) {
+    #[tracing::instrument(skip_all, err)]
+    pub fn on_map_request(
+        &mut self,
+        context: EventContext<xcb::x::MapRequestEvent>,
+    ) -> anyhow::Result<()> {
         for handler in self.handlers.iter_mut() {
-            match handler.on_map_request(context.clone()) {
-                Ok(_) => {}
-                Err(e) => tracing::error!("critical error happened: {e:?}"),
-            }
+            handler.on_map_request(context.clone())?;
         }
-        tracing::debug!("map request handled correctly");
+
+        Ok(())
     }
 
-    pub fn on_destroy_notify(&mut self, context: EventContext<xcb::x::DestroyNotifyEvent>) {
+    #[tracing::instrument(skip_all, err)]
+    pub fn on_destroy_notify(
+        &mut self,
+        context: EventContext<xcb::x::DestroyNotifyEvent>,
+    ) -> anyhow::Result<()> {
         for handler in self.handlers.iter_mut() {
-            match handler.on_destroy_notify(context.clone()) {
-                Ok(_) => {}
-                Err(e) => tracing::error!("critical error happened: {e:?}"),
-            }
+            handler.on_destroy_notify(context.clone())?;
         }
-        tracing::debug!("destroy notify handled correctly");
+
+        Ok(())
     }
 
-    pub fn on_enter_notify(&mut self, context: EventContext<xcb::x::EnterNotifyEvent>) {
+    #[tracing::instrument(skip_all, err)]
+    pub fn on_enter_notify(
+        &mut self,
+        context: EventContext<xcb::x::EnterNotifyEvent>,
+    ) -> anyhow::Result<()> {
         for handler in self.handlers.iter_mut() {
-            match handler.on_enter_notify(context.clone()) {
-                Ok(_) => {}
-                Err(e) => tracing::error!("critical error happened: {e:?}"),
-            }
+            handler.on_enter_notify(context.clone())?;
         }
-        tracing::debug!("enter notify handled correctly");
+
+        Ok(())
     }
 
-    pub fn on_unmap_notify(&mut self, context: EventContext<xcb::x::UnmapNotifyEvent>) {
+    #[tracing::instrument(skip_all, err)]
+    pub fn on_unmap_notify(
+        &mut self,
+        context: EventContext<xcb::x::UnmapNotifyEvent>,
+    ) -> anyhow::Result<()> {
         for handler in self.handlers.iter_mut() {
-            match handler.on_unmap_notify(context.clone()) {
-                Ok(_) => {}
-                Err(e) => tracing::error!("critical error happened: {e:?}"),
-            }
+            handler.on_unmap_notify(context.clone())?;
         }
-        tracing::debug!("unmap handled correctly");
+
+        Ok(())
     }
 
-    pub fn on_property_notify(&mut self, context: EventContext<xcb::x::PropertyNotifyEvent>) {
+    pub fn on_property_notify(
+        &mut self,
+        context: EventContext<xcb::x::PropertyNotifyEvent>,
+    ) -> anyhow::Result<()> {
         for handler in self.handlers.iter_mut() {
-            match handler.on_property_notify(context.clone()) {
-                Ok(_) => {}
-                Err(e) => tracing::error!("critical error happened: {e:?}"),
-            }
+            handler.on_property_notify(context.clone())?;
         }
-        tracing::debug!("unmap handled correctly");
+
+        Ok(())
     }
 }

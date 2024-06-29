@@ -4,7 +4,7 @@ use crate::screen_manager::Direction;
 use config::keysyms::Keysym;
 use config::AvailableActions;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ActionHandler {}
 
 impl Handler for ActionHandler {
@@ -19,6 +19,7 @@ impl Handler for ActionHandler {
                 action.key().eq(&keysym) && context.event.state().eq(&action.modifiers().into())
             }) {
                 use AvailableActions::*;
+
                 match action.action() {
                     Quit => std::process::exit(1),
                     Close => self.handle_close(&context)?,
@@ -54,6 +55,11 @@ impl Handler for ActionHandler {
             }
         }
 
+        context
+            .screen_manager
+            .borrow_mut()
+            .update_atoms(context.atoms, &context.conn);
+
         Ok(())
     }
 }
@@ -63,7 +69,7 @@ impl ActionHandler {
         let mut screen_manager = context.screen_manager.borrow_mut();
         if let Some(client) = screen_manager.close_focused_client()? {
             drop(screen_manager);
-            match context.layout_manager.close_client(client, context.atoms) {
+            match context.layout_manager.close_client(&client, context.atoms) {
                 Ok(_) => {
                     tracing::debug!(
                         "focus left handled correctly for window {:?}",

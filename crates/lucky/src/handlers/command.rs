@@ -2,7 +2,7 @@ use crate::event::EventContext;
 use crate::handlers::handler::Handler;
 use config::keysyms::Keysym;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct CommandHandler {}
 
 impl Handler for CommandHandler {
@@ -31,6 +31,12 @@ impl Handler for CommandHandler {
                 }
             }
         }
+
+        context
+            .screen_manager
+            .borrow_mut()
+            .update_atoms(context.atoms, &context.conn);
+
         Ok(())
     }
 }

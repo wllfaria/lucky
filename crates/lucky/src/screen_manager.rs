@@ -1,57 +1,10 @@
-use crate::macros::*;
+use crate::ewmh::*;
+use crate::position::Position;
 use crate::screen::{Client, Screen};
 use config::Config;
 use std::{cell::RefCell, collections::HashMap, ops::Add, rc::Rc};
 
 use std::sync::Arc;
-
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub struct Position {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
-}
-
-impl Position {
-    pub fn new(x: i32, y: i32, width: u32, height: u32) -> Self {
-        Position {
-            x,
-            y,
-            width,
-            height,
-        }
-    }
-
-    /// fetches the right of the screen by adding its starting x position
-    /// to the width, resulting in its right x position
-    pub fn right(&self) -> i32 {
-        self.x + self.width as i32
-    }
-
-    /// fetches the left of the screen, this exists mainly to have a better
-    /// naming than x over the codebase
-    pub fn left(&self) -> i32 {
-        self.x
-    }
-
-    pub fn bottom(&self) -> i32 {
-        self.y + self.height as i32
-    }
-
-    pub fn top(&self) -> i32 {
-        self.y
-    }
-}
-
-impl std::fmt::Display for Position {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "x: {}, y: {}, width: {}, height: {}",
-            self.x, self.y, self.width, self.height
-        ))
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
@@ -67,6 +20,7 @@ pub struct ScreenManager {
     root: xcb::x::Window,
     active_screen: usize,
     config: Rc<RefCell<Config>>,
+    showing_desktop_status: EwmhShowingDesktop,
 }
 
 impl ScreenManager {
@@ -75,9 +29,14 @@ impl ScreenManager {
             active_screen: 0,
             root,
             clients: HashMap::new(),
+            showing_desktop_status: EwmhShowingDesktop::Hide,
             screens,
             config,
         }
+    }
+
+    pub fn root(&self) -> xcb::x::Window {
+        self.root
     }
 
     pub fn clients(&self) -> &HashMap<xcb::x::Window, Client> {
@@ -116,6 +75,14 @@ impl ScreenManager {
         self.active_screen
     }
 
+    /// finds which screen should be selected when moving/focusing a client
+    /// in a specific direction.
+    ///
+    /// since every screen has a position, we find possible candidates that
+    /// are further to the selected direction, and find based on the distance
+    /// of each candidates x,y starting point from the x,y starting point of
+    /// the current screen which is the closest monitor and therefore which
+    /// should be selected.
     pub fn get_relative_screen_idx(&self, direction: Direction) -> Option<usize> {
         let active_screen = &self.screens[self.active_screen];
         let curr_position = active_screen.position();
@@ -164,7 +131,6 @@ impl ScreenManager {
                 workspace: self.screens[self.active_screen].active_workspace().id(),
             },
         );
-        tracing::debug!("inserting client {frame:?} on clients");
 
         let screen = &mut self.screens[self.active_screen];
         let workspace = screen.active_workspace_mut();
@@ -189,7 +155,6 @@ impl ScreenManager {
             .find(|client| client.window.eq(&window) || client.frame.eq(&window))
         {
             Some(client) => {
-                tracing::debug!("focusing client: {client:?}");
                 self.screens.iter_mut().for_each(|screen| {
                     let workspace = screen.active_workspace_mut();
                     workspace
@@ -233,35 +198,40 @@ impl ScreenManager {
             .collect::<Vec<&Client>>()
     }
 
-    pub fn maybe_switch_screen(&mut self, pointer: xcb::x::QueryPointerReply) {
+    /// when the user cursor mover from a monitor to another we need to
+    /// switch focus to that monitor,
+    pub fn maybe_switch_screen(
+        &mut self,
+        pointer: xcb::x::QueryPointerReply,
+        conn: &Arc<xcb::Connection>,
+        atoms: &crate::atoms::Atoms,
+    ) {
         let (cursor_x, cursor_y) = (pointer.root_x(), pointer.root_y());
 
-        self.screens.iter().enumerate().for_each(|(idx, screen)| {
+        for (idx, screen) in self.screens.iter().enumerate() {
             if is_cursor_inside(cursor_x.into(), cursor_y.into(), screen.position()) {
                 self.active_screen = idx;
+                self.update_atoms(atoms, conn);
             }
-        });
+        }
     }
 
+    /// update every EWMH necessary atoms regarding the current context
+    /// of the active screen.
+    ///
+    /// although techinically some of those atoms could be updated only
+    /// when changed, this is a fair tradeoff as the performance impact of
+    /// this is negligible
     pub fn update_atoms(&self, atoms: &crate::atoms::Atoms, conn: &Arc<xcb::Connection>) {
         let screen = &self.screens[self.active_screen];
-        xcb_change_prop!(
-            conn,
-            self.root,
-            xcb::x::ATOM_CARDINAL,
-            atoms.net_number_of_desktops,
-            &[screen.workspaces().len() as u32]
-        )
-        .expect("failed to update atoms");
-
-        xcb_change_prop!(
-            conn,
-            self.root,
-            xcb::x::ATOM_CARDINAL,
-            atoms.net_current_desktop,
-            &[screen.active_workspace_id() as u32]
-        )
-        .expect("failed to update atoms");
+        ewmh_set_desktop_viewport(conn, self.root, &self.screens, atoms).ok();
+        ewmh_set_number_of_desktops(conn, self.root, screen, atoms).ok();
+        ewmh_set_current_desktop(conn, self.root, screen, atoms).ok();
+        ewmh_set_desktop_names(conn, self.root, screen, atoms).ok();
+        ewmh_set_wm_desktop(conn, screen, &self.clients, atoms).ok();
+        ewmh_set_client_list(conn, self.root, self.clients.keys(), atoms).ok();
+        ewmh_set_client_list_stacking(conn, self.root, self.clients.keys(), atoms).ok();
+        ewmh_set_showing_desktop(conn, self.root, atoms, self.showing_desktop_status).ok();
     }
 }
 
@@ -276,6 +246,7 @@ fn is_cursor_inside(x: i32, y: i32, position: &Position) -> bool {
 ///
 /// the formula is:
 /// d=√((x2 – x1)² + (y2 – y1)²)
+/// see: https://en.wikipedia.org/wiki/Euclidean_distance
 fn euclidean_distance(x1: i32, y1: i32, x2: i32, y2: i32) -> f64 {
     (((x2 - x1).pow(2) + (y2 - y1).pow(2)) as f64).sqrt()
 }

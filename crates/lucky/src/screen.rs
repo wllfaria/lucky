@@ -1,7 +1,12 @@
 use config::Config;
 use std::{cell::RefCell, rc::Rc};
 
-use crate::screen_manager::Position;
+use crate::position::Position;
+
+pub trait IntoClient {
+    fn get_window(&self) -> xcb::x::Window;
+    fn get_frame(&self) -> Option<xcb::x::Window>;
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Client {
@@ -11,12 +16,36 @@ pub struct Client {
     pub visible: bool,
 }
 
+impl IntoClient for Client {
+    fn get_window(&self) -> xcb::x::Window {
+        self.window
+    }
+
+    fn get_frame(&self) -> Option<xcb::x::Window> {
+        Some(self.frame)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ReservedClient {
     pub window: xcb::x::Window,
     pub show_on_all_workspaces: bool,
     pub workspace: u8,
     pub position: Position,
+    pub reserved_left: u32,
+    pub reserved_bottom: u32,
+    pub reserved_top: u32,
+    pub reserved_right: u32,
+}
+
+impl IntoClient for ReservedClient {
+    fn get_window(&self) -> xcb::x::Window {
+        self.window
+    }
+
+    fn get_frame(&self) -> Option<xcb::x::Window> {
+        None
+    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -29,6 +58,7 @@ pub enum WorkspaceLayout {
 pub struct Workspace {
     id: u8,
     layout: WorkspaceLayout,
+    name: String,
     clients: Vec<xcb::x::Window>,
     focused_client: Option<xcb::x::Window>,
 }
@@ -38,9 +68,14 @@ impl Workspace {
         Workspace {
             id,
             layout: Default::default(),
+            name: format!("Workspace {id}"),
             clients: vec![],
             focused_client: None,
         }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub fn layout(&self) -> &WorkspaceLayout {
@@ -107,6 +142,10 @@ impl Screen {
         &self.reserved_clients
     }
 
+    pub fn reserved_clients_mut(&mut self) -> &mut [ReservedClient] {
+        &mut self.reserved_clients
+    }
+
     pub fn focused_client(&self) -> Option<xcb::x::Window> {
         self.workspaces[self.active_workspace as usize].focused_client
     }
@@ -137,6 +176,22 @@ impl Screen {
 
     pub fn position(&self) -> &Position {
         &self.position
+    }
+
+    pub fn sub_left_reserved_area(&mut self, amount: u32) {
+        self.reserved_left_area -= amount;
+    }
+
+    pub fn sub_bottom_reserved_area(&mut self, amount: u32) {
+        self.reserved_bottom_area -= amount;
+    }
+
+    pub fn sub_top_reserved_area(&mut self, amount: u32) {
+        self.reserved_top_area -= amount;
+    }
+
+    pub fn sub_right_reserved_area(&mut self, amount: u32) {
+        self.reserved_right_area -= amount;
     }
 
     pub fn add_left_reserved_area(&mut self, amount: u32) {

@@ -1,14 +1,16 @@
 mod atoms;
 mod decorator;
 mod event;
+mod ewmh;
 mod handlers;
 mod keyboard;
 mod layout_manager;
 mod lucky;
+mod position;
 mod screen;
 mod screen_manager;
 
-mod macros;
+mod xcb_utils;
 
 use lucky::Lucky;
 use tracing_subscriber::FmtSubscriber;
@@ -24,12 +26,8 @@ fn main() -> anyhow::Result<()> {
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
 
-    match Lucky::new() {
-        Ok(wm) => wm.run(),
-        Err(e) => {
-            tracing::error!("an error happened: {e:?}");
-        }
-    };
+    let lucky = Lucky::new()?;
+    lucky.run()?;
 
     Ok(())
 }

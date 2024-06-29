@@ -1,6 +1,6 @@
 use crate::event::EventContext;
 
-pub trait Handler {
+pub trait Handler: std::fmt::Debug {
     fn on_key_press(
         &mut self,
         _context: EventContext<xcb::x::KeyPressEvent>,
