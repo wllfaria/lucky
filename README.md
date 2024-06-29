@@ -17,16 +17,16 @@ in a fast pace.
 - [x] Window focus follows mouse
 - [x] Custom keybinds for actions and commands
 - [x] Customizable decorations
-- [ ] Startup programs and commands
+- [x] Startup programs and commands
 - [ ] Fullscreen and minimize screens
-- [ ] Status bar support
+- [x] Status bar support
 - [ ] Titles
 - [ ] Floating layout
 - [ ] Interactive Resizing
 - [ ] Compositor support
 - [ ] Gaps
 - [ ] ICCCM compliance
-- [ ] Full EWMH compliance
+- [w] Full EWMH compliance
 - [ ] Move windows between workspaces
 
 Some of the features listed here are also part of the EWMH and ICCM specifications, but
