@@ -197,83 +197,78 @@ impl TallLayout {
         Ok(())
     }
 
-    fn focus_first(screen: &mut Screen, _: xcb::x::Window) -> anyhow::Result<xcb::x::Window> {
-        let first_client = screen
-            .active_workspace()
-            .clients()
-            .first()
-            .copied()
-            .context("tried to focus a client on an empty workspace")?;
+    fn focus_first(screen: &mut Screen) -> Option<xcb::x::Window> {
+        let first_client = screen.active_workspace().clients().first().copied();
 
         screen
             .active_workspace_mut()
-            .set_focused_client(Some(first_client));
+            .set_focused_client(first_client);
 
-        Ok(first_client)
+        first_client
     }
 
-    fn focus_last(screen: &mut Screen, _: xcb::x::Window) -> anyhow::Result<xcb::x::Window> {
-        let last_client = screen
-            .active_workspace()
-            .clients()
-            .last()
-            .copied()
-            .context("tried to focus a client on an empty workspace")?;
+    fn focus_last(screen: &mut Screen) -> Option<xcb::x::Window> {
+        let last_client = screen.active_workspace().clients().last().copied();
         screen
             .active_workspace_mut()
-            .set_focused_client(Some(last_client));
+            .set_focused_client(last_client);
 
-        Ok(last_client)
+        last_client
     }
 
-    fn focus_prev(screen: &mut Screen, client: xcb::x::Window) -> anyhow::Result<xcb::x::Window> {
+    fn focus_prev(screen: &mut Screen, client: xcb::x::Window) -> Option<xcb::x::Window> {
         let index = screen
             .active_workspace()
             .clients()
             .iter()
             .position(|c| c.eq(&client))
-            .context("workspace clients vector should include selected client")?;
+            .expect("workspace clients vector should include selected client");
 
         let client = screen
             .active_workspace()
             .clients()
             .get(index.sub(1))
-            .copied()
-            .context("should have a next client at this point")?;
+            .copied();
 
-        screen
-            .active_workspace_mut()
-            .set_focused_client(Some(client));
+        screen.active_workspace_mut().set_focused_client(client);
 
-        Ok(client)
+        client
     }
 
-    fn focus_next(screen: &mut Screen, client: xcb::x::Window) -> anyhow::Result<xcb::x::Window> {
+    fn focus_next(screen: &mut Screen, client: xcb::x::Window) -> Option<xcb::x::Window> {
         let index = screen
             .active_workspace()
             .clients()
             .iter()
             .position(|c| c.eq(&client))
-            .context("workspace clients vector should include selected client")?;
+            .expect("workspace clients vector should include selected client");
 
         let client = screen
             .active_workspace()
             .clients()
             .get(index.add(1))
-            .copied()
-            .context("should have a next client at this point")?;
+            .copied();
 
-        screen
-            .active_workspace_mut()
-            .set_focused_client(Some(client));
+        screen.active_workspace_mut().set_focused_client(client);
 
-        Ok(client)
+        client
     }
 
+    /// focus a client in a given direction. Possibly focusing a client on an adjacent
+    /// screen, this function will never fail, but might return a few set of different
+    /// data, explained below:
+    ///
+    /// - `None` -> `Screen` has no clients that can be focused
+    /// - `Some((None, Some(_)))` -> `Screen` has no focused client, and we focused one
+    /// - `Some((Some(_), Some(_)))` -> `Screen` had a focused client, and we changed focus
+    ///
+    /// The order is always `Some((Some(old_client), Some(new_client)))`
+    ///
+    /// TODO: when there are no clients on the current screen, try focusing on the adjacent
     pub fn focus_client(
         screen_manager: &mut ScreenManager,
         direction: Direction,
-    ) -> anyhow::Result<Option<(xcb::x::Window, xcb::x::Window)>> {
+    ) -> anyhow::Result<Option<(Option<xcb::x::Window>, Option<xcb::x::Window>)>> {
         let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
 
@@ -281,9 +276,16 @@ impl TallLayout {
             return Ok(None);
         }
 
-        let client = screen
-            .focused_client()
-            .context("tried to get the focused client when there was none")?;
+        let Some(client) = screen.focused_client() else {
+            let focused_client = match direction {
+                Direction::Left => Self::focus_last(screen),
+                Direction::Down => Self::focus_first(screen),
+                Direction::Up => Self::focus_last(screen),
+                Direction::Right => Self::focus_first(screen),
+            };
+
+            return Ok(Some((None, focused_client)));
+        };
 
         let should_change_screen = match direction {
             Direction::Left => Self::is_first(screen, client),
@@ -301,53 +303,45 @@ impl TallLayout {
             let screen = screen_manager.screen_mut(new_screen);
 
             let focused_client = match direction {
-                Direction::Left => Self::focus_last(screen, client),
-                Direction::Down => Self::focus_first(screen, client),
-                Direction::Up => Self::focus_last(screen, client),
-                Direction::Right => Self::focus_first(screen, client),
+                Direction::Left => Self::focus_last(screen),
+                Direction::Down => Self::focus_first(screen),
+                Direction::Up => Self::focus_last(screen),
+                Direction::Right => Self::focus_first(screen),
             };
 
-            if focused_client.is_err() {
-                return Ok(None);
-            }
-
-            return Ok(Some((client, focused_client?)));
+            return Ok(Some((Some(client), focused_client)));
         }
 
         let focused_client = match direction {
-            Direction::Left => Self::focus_first(screen, client)?,
-            Direction::Down => Self::focus_next(screen, client)?,
-            Direction::Up => Self::focus_prev(screen, client)?,
-            Direction::Right => Self::focus_next(screen, client)?,
+            Direction::Left => Self::focus_first(screen),
+            Direction::Down => Self::focus_next(screen, client),
+            Direction::Up => Self::focus_prev(screen, client),
+            Direction::Right => Self::focus_next(screen, client),
         };
 
-        Ok(Some((client, focused_client)))
+        Ok(Some((Some(client), focused_client)))
     }
 
     pub fn move_client(
         screen_manager: &mut ScreenManager,
         direction: Direction,
-    ) -> anyhow::Result<Option<xcb::x::Window>> {
+    ) -> Option<xcb::x::Window> {
         let index = screen_manager.active_screen_idx();
         let screen = screen_manager.screen_mut(index);
 
         if screen.active_workspace().clients().is_empty() {
-            return Ok(None);
+            return None;
         }
 
-        let client = screen
-            .focused_client()
-            .context("tried to get the focused client when there was none")?;
-
-        if screen.focused_client().is_none() {
+        let Some(client) = screen.focused_client() else {
             let focused_client = match direction {
-                Direction::Left => Self::focus_last(screen, client)?,
-                Direction::Down => Self::focus_first(screen, client)?,
-                Direction::Up => Self::focus_last(screen, client)?,
-                Direction::Right => Self::focus_first(screen, client)?,
+                Direction::Left => Self::focus_last(screen),
+                Direction::Down => Self::focus_first(screen),
+                Direction::Up => Self::focus_last(screen),
+                Direction::Right => Self::focus_first(screen),
             };
-            return Ok(Some(focused_client));
-        }
+            return focused_client;
+        };
 
         let should_change_screen = match direction {
             Direction::Left => Self::is_first(screen, client),
@@ -358,7 +352,7 @@ impl TallLayout {
 
         if should_change_screen {
             let Some(new_screen) = screen_manager.get_relative_screen_idx(direction) else {
-                return Ok(None);
+                return None;
             };
 
             screen_manager
@@ -373,17 +367,17 @@ impl TallLayout {
 
             screen_manager.set_active_screen(new_screen);
 
-            return Ok(None);
+            return None;
         }
 
         match direction {
-            Direction::Left => Self::swap_first(screen, client)?,
-            Direction::Down => Self::swap_next(screen, client)?,
-            Direction::Up => Self::swap_prev(screen, client)?,
-            Direction::Right => Self::swap_next(screen, client)?,
+            Direction::Left => Self::swap_first(screen, client),
+            Direction::Down => Self::swap_next(screen, client),
+            Direction::Up => Self::swap_prev(screen, client),
+            Direction::Right => Self::swap_next(screen, client),
         };
 
-        Ok(None)
+        None
     }
 
     fn configure_window(conn: &Arc<xcb::Connection>, window: xcb::x::Window, client_pos: Position) {

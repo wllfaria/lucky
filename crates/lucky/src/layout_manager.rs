@@ -91,30 +91,36 @@ impl LayoutManager {
         };
 
         if let Some((prev_client, curr_client)) = result {
-            let prev_client = screen_manager.clients().get(&prev_client).unwrap();
-            let curr_client = screen_manager.clients().get(&curr_client).unwrap();
+            let prev_client =
+                prev_client.map(|client| screen_manager.clients().get(&client).unwrap());
+            let curr_client =
+                curr_client.map(|client| screen_manager.clients().get(&client).unwrap());
 
-            ewmh_set_focus(
-                &context.conn,
-                context.atoms,
-                prev_client.window,
-                EwmhFocusAction::Unfocus,
-            )
-            .ok();
-            ewmh_set_focus(
-                &context.conn,
-                context.atoms,
-                curr_client.window,
-                EwmhFocusAction::Focus,
-            )
-            .ok();
-            ewmh_set_active_window(
-                &context.conn,
-                screen_manager.root(),
-                context.atoms,
-                curr_client.window,
-            )
-            .ok();
+            if let Some(client) = prev_client {
+                ewmh_set_focus(
+                    &context.conn,
+                    context.atoms,
+                    client.window,
+                    EwmhFocusAction::Unfocus,
+                )
+                .ok();
+            }
+            if let Some(client) = curr_client {
+                ewmh_set_focus(
+                    &context.conn,
+                    context.atoms,
+                    client.window,
+                    EwmhFocusAction::Focus,
+                )
+                .ok();
+                ewmh_set_active_window(
+                    &context.conn,
+                    screen_manager.root(),
+                    context.atoms,
+                    client.window,
+                )
+                .ok();
+            }
         }
 
         drop(screen_manager);
@@ -135,7 +141,7 @@ impl LayoutManager {
         let workspace = screen.active_workspace();
 
         let result = match workspace.layout() {
-            WorkspaceLayout::Tall => TallLayout::move_client(&mut screen_manager, direction)?,
+            WorkspaceLayout::Tall => TallLayout::move_client(&mut screen_manager, direction),
         };
 
         if let Some(focused_client) = result {
