@@ -212,6 +212,10 @@ impl ScreenManager {
             if is_cursor_inside(cursor_x.into(), cursor_y.into(), screen.position()) {
                 self.active_screen = idx;
                 self.update_atoms(atoms, conn);
+                if let Some(client) = self.get_focused_client() {
+                    ewmh_set_active_window(conn, self.root, atoms, client.window).ok();
+                    ewmh_set_focus(conn, atoms, client.window, EwmhFocusAction::Focus).ok();
+                }
             }
         }
     }

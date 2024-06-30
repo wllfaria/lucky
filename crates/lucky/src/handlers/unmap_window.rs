@@ -1,3 +1,4 @@
+use crate::ewmh::{ewmh_set_active_window, ewmh_set_focus, EwmhFocusAction};
 use crate::{event::EventContext, handlers::Handler};
 
 #[derive(Debug, Default)]
@@ -13,10 +14,11 @@ impl UnmapWindowHandler {
 
         for screen in screen_manager.screens_mut() {
             let reserved_clients = screen.reserved_clients_mut();
-            let reserved_client = reserved_clients
-                .iter_mut()
-                .find(|client| client.window.eq(&window));
-            if let Some(reserved_client) = reserved_client.cloned() {
+            let reserved_client_idx = reserved_clients
+                .iter()
+                .position(|client| client.window.eq(&window));
+            if let Some(reserved_client_idx) = reserved_client_idx {
+                let reserved_client = reserved_clients[reserved_client_idx].clone();
                 context
                     .layout_manager
                     .close_client(&reserved_client, context.atoms)?;
@@ -24,6 +26,7 @@ impl UnmapWindowHandler {
                 screen.sub_bottom_reserved_area(reserved_client.reserved_bottom);
                 screen.sub_top_reserved_area(reserved_client.reserved_top);
                 screen.sub_right_reserved_area(reserved_client.reserved_right);
+                screen.remove_reserved_client(reserved_client_idx);
             }
         }
         Ok(())
@@ -79,6 +82,21 @@ impl Handler for UnmapWindowHandler {
             .screen_manager
             .borrow_mut()
             .update_atoms(context.atoms, &context.conn);
+
+        ewmh_set_focus(
+            &context.conn,
+            context.atoms,
+            context.event.window(),
+            EwmhFocusAction::Focus,
+        )
+        .ok();
+        ewmh_set_active_window(
+            &context.conn,
+            context.screen_manager.borrow().root(),
+            context.atoms,
+            context.event.window(),
+        )
+        .ok();
 
         Ok(())
     }

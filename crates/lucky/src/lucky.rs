@@ -36,14 +36,15 @@ impl Lucky {
         let (conn, _) = xcb::Connection::connect(None).context("failed to initialize self.conn to the X server. Check the DISPLAY environment variable")?;
         let conn = Arc::new(conn);
         let config = Rc::new(RefCell::new(config::load_config()));
+        execute_auto_commands(config.borrow().startup_commands())
+            .context("failed to run startup commands")?;
+
         let root = Self::setup(&conn)?;
         let atoms = Atoms::new(&conn);
         let screens = Self::get_monitors(&conn, root, &config)?;
         let screen_manager = ScreenManager::new(screens, config.clone(), root);
 
         screen_manager.update_atoms(&atoms, &conn);
-        execute_auto_commands(config.borrow().startup_commands())
-            .context("failed to run startup commands")?;
         ewmh_set_wm_hints(&conn, root, &atoms).context("failed to setup window manager hints")?;
 
         conn.flush().expect("failed to flush the connection");
@@ -278,6 +279,12 @@ fn poll_events(conn: Arc<xcb::Connection>, event_tx: Sender<XEvent>) -> anyhow::
                     .send(XEvent::PropertyNotify(e))
                     .context("failed to send event through channel")?,
                 xcb::Event::X(xcb::x::Event::ConfigureRequest(_)) => {}
+                xcb::Event::RandR(xcb::randr::Event::Notify(e)) => {
+                    tracing::trace!("from notify randr {e:?}")
+                }
+                xcb::Event::RandR(xcb::randr::Event::ScreenChangeNotify(e)) => {
+                    tracing::trace!("from change screen {e:?}")
+                }
                 _ => {}
             };
         };

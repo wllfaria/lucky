@@ -1,7 +1,9 @@
 use crate::event::EventContext;
+use crate::ewmh::{ewmh_set_active_window, ewmh_set_focus, EwmhFocusAction};
 use crate::handlers::handler::Handler;
 use crate::position::Position;
 use crate::screen::ReservedClient;
+use anyhow::Context;
 
 #[derive(Default, Debug)]
 pub struct MapWindowHandler {}
@@ -122,43 +124,49 @@ impl Handler for MapWindowHandler {
         }
 
         let frame = context.decorator.decorate_client(window)?;
+        let current_focused_client = context
+            .screen_manager
+            .borrow()
+            .get_focused_client()
+            .cloned();
 
-        match context.layout_manager.enable_client_events(window) {
-            Ok(_) => tracing::info!("enabled events for window: {:?}", window),
-            Err(e) => {
-                tracing::error!("failed to enable events for window: {:?}", window);
-                return Err(e);
-            }
-        }
-        match context.layout_manager.enable_client_events(frame) {
-            Ok(_) => tracing::info!("enabled events for framw: {:?}", window),
-            Err(e) => {
-                tracing::error!("failed to enable events for frame: {:?}", window);
-                return Err(e);
-            }
-        }
+        context
+            .layout_manager
+            .enable_client_events(window)
+            .context("failed to enable events for window")?;
+
+        context
+            .layout_manager
+            .enable_client_events(frame)
+            .context("failed to enable events for frame")?;
 
         context
             .screen_manager
             .borrow_mut()
             .create_client(frame, window);
 
-        match context
+        current_focused_client.map(|client| {
+            ewmh_set_focus(
+                &context.conn,
+                context.atoms,
+                client.window,
+                EwmhFocusAction::Unfocus,
+            )
+            .ok()
+        });
+        ewmh_set_focus(&context.conn, context.atoms, window, EwmhFocusAction::Focus).ok();
+        ewmh_set_active_window(
+            &context.conn,
+            context.screen_manager.borrow().root(),
+            context.atoms,
+            window,
+        )
+        .ok();
+
+        context
             .layout_manager
             .display_screens(&context.screen_manager, context.decorator)
-        {
-            Ok(_) => tracing::info!(
-                "displayed all windows after mapping a new client: {:?}",
-                frame
-            ),
-            Err(e) => {
-                tracing::error!(
-                    "failed to display windows after mapping a new client: {:?}",
-                    frame
-                );
-                return Err(e);
-            }
-        }
+            .context("failed to display windows after mapping a new client}")?;
 
         context
             .screen_manager

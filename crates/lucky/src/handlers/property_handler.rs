@@ -9,7 +9,6 @@ impl Handler for PropertyHandler {
         &mut self,
         _context: EventContext<xcb::x::PropertyNotifyEvent>,
     ) -> anyhow::Result<()> {
-        tracing::trace!("not handling this yet:");
         Ok(())
     }
 }

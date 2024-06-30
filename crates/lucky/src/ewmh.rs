@@ -78,12 +78,14 @@ pub fn ewmh_set_desktop_names(
         xcb::x::PropMode::Replace,
         xcb::x::ATOM_STRING,
         atoms.net_desktop_names,
-        screen
+        &screen
             .workspaces()
             .iter()
-            .map(|ws| ws.name())
-            .collect::<String>()
-            .as_bytes()
+            .map(|ws| ws.name().to_owned())
+            .collect::<Vec<_>>()
+            .iter()
+            .flat_map(|s| s.bytes().chain(Some(0)))
+            .collect::<Vec<_>>()
     )
 }
 
@@ -119,6 +121,7 @@ pub fn ewmh_set_active_window(
     atoms: &Atoms,
     window: xcb::x::Window,
 ) -> anyhow::Result<(), xcb::ProtocolError> {
+    tracing::debug!("setting active window to: {window:?}");
     xcb_change_prop!(
         conn,
         root,

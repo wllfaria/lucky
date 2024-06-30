@@ -204,6 +204,7 @@ impl TallLayout {
             .first()
             .copied()
             .context("tried to focus a client on an empty workspace")?;
+
         screen
             .active_workspace_mut()
             .set_focused_client(Some(first_client));
@@ -297,16 +298,20 @@ impl TallLayout {
             };
 
             screen_manager.set_active_screen(new_screen);
-            let screen = screen_manager.screen_mut(index);
+            let screen = screen_manager.screen_mut(new_screen);
 
             let focused_client = match direction {
-                Direction::Left => Self::focus_first(screen, client)?,
-                Direction::Down => Self::focus_first(screen, client)?,
-                Direction::Up => Self::focus_last(screen, client)?,
-                Direction::Right => Self::focus_last(screen, client)?,
+                Direction::Left => Self::focus_last(screen, client),
+                Direction::Down => Self::focus_first(screen, client),
+                Direction::Up => Self::focus_last(screen, client),
+                Direction::Right => Self::focus_first(screen, client),
             };
 
-            return Ok(Some((client, focused_client)));
+            if focused_client.is_err() {
+                return Ok(None);
+            }
+
+            return Ok(Some((client, focused_client?)));
         }
 
         let focused_client = match direction {
@@ -365,6 +370,8 @@ impl TallLayout {
                 .screen_mut(new_screen)
                 .active_workspace_mut()
                 .new_client(client);
+
+            screen_manager.set_active_screen(new_screen);
 
             return Ok(None);
         }

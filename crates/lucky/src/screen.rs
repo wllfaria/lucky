@@ -68,7 +68,7 @@ impl Workspace {
         Workspace {
             id,
             layout: Default::default(),
-            name: format!("Workspace {id}"),
+            name: format!("Workspace {}", id + 1),
             clients: vec![],
             focused_client: None,
         }
@@ -212,6 +212,10 @@ impl Screen {
 
     pub fn add_reserved_client(&mut self, reserved_client: ReservedClient) {
         self.reserved_clients.push(reserved_client);
+    }
+
+    pub fn remove_reserved_client(&mut self, reserved_client_idx: usize) {
+        self.reserved_clients.remove(reserved_client_idx);
     }
 
     pub fn get_available_area(&self) -> Position {
